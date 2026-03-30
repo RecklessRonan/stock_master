@@ -29,6 +29,15 @@ sm snapshot ~/Desktop/持仓.png
 
 # 查看截图列表
 sm snapshot
+
+# 多模型智能投资建议（需要 agent CLI）
+sm suggest
+
+# 跳过数据刷新，仅用现有上下文
+sm suggest --no-refresh
+
+# 只分析指定股票
+sm suggest -c 002273 -c 09988
 ```
 
 ## 工作流
@@ -45,6 +54,7 @@ sm snapshot
 src/stock_master/   — Python 核心引擎（数据、分析、编排、持仓）
 prompts/            — AI 调研角色模板
 research/           — 调研产物（按股票/日期）
+  _suggest/         — 组合级多模型投资建议（sm suggest 产出）
 journal/            — 交易记录与复盘
   trades/           — 单笔交易 YAML
   entries/          — 交易叙事日志

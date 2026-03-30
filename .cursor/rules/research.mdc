@@ -38,3 +38,17 @@ research/{code}/{YYYY-MM-DD}/
 ## 历史研究加载
 
 分析某只股票时，应检查 `research/{code}/` 下是否有历史调研，了解之前的论点与判断。
+
+## 组合级建议目录
+
+`research/_suggest/{YYYY-MM-DD}/` 是 `sm suggest` 产出的组合级多模型建议目录，**不是**单股研究目录。扫描已研究股票时应忽略所有以 `_` 开头的顶层目录。
+
+```
+research/_suggest/{YYYY-MM-DD}/
+├── manifest.yaml                    # 本次运行元数据
+├── inputs.md                        # 发送给模型的完整 prompt
+├── gpt-5.4-xhigh.md                # GPT-5.4 独立建议
+├── claude-4.6-opus-high-thinking.md # Opus 4.6 独立建议
+├── gemini-3.1-pro.md                # Gemini 3.1 Pro 独立建议
+└── final-gpt-5.4-xhigh.md          # 三模型综合报告
+```

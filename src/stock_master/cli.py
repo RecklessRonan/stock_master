@@ -552,5 +552,37 @@ def research(
     console.print("  4. 填写 decision.md 完成决策")
 
 
+@app.command()
+def suggest(
+    no_refresh: bool = typer.Option(False, "--no-refresh", help="跳过数据刷新，使用现有上下文"),
+    codes: Optional[list[str]] = typer.Option(None, "--code", "-c", help="仅分析指定股票（可多次使用）"),
+) -> None:
+    """多模型智能投资建议 — 调用 GPT/Claude/Gemini 生成综合决策."""
+    import shutil
+
+    from stock_master.pipeline.cursor_agent import ensure_agent_available
+    from stock_master.pipeline.suggest import run_suggest
+
+    try:
+        ensure_agent_available()
+    except RuntimeError as exc:
+        console.print(f"[bold red]{exc}[/]")
+        raise typer.Exit(1) from None
+
+    try:
+        output_dir = run_suggest(
+            no_refresh=no_refresh,
+            codes_filter=codes or None,
+        )
+    except RuntimeError as exc:
+        console.print(f"[bold red]错误：{exc}[/]")
+        raise typer.Exit(1) from None
+
+    console.print("[bold]产物目录结构：[/]")
+    for f in sorted(output_dir.iterdir()):
+        console.print(f"  📄 {f.name}")
+    console.print("\n[dim]这是候选决策，最终由你人工拍板。[/]")
+
+
 if __name__ == "__main__":
     app()

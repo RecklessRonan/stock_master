@@ -17,12 +17,18 @@ dependencies = [
 [project.scripts]
 sm = "stock_master.cli:app"
 
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/stock_master"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py312"
