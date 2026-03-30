@@ -99,7 +99,7 @@ class TestSaveArtifacts:
             context_paths={"002273": "research/002273/2026-03-30/context.md"},
             portfolio_text="positions: []",
             portfolio_data={"positions": []},
-            run_date="2026-03-30",
+            run_date="2026-03-30-1430",
         )
 
         raw_results = [

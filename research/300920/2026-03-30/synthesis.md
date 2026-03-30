@@ -1,0 +1,1 @@
+# 综合研判：润阳科技 (300920)\n\n> 日期：2026-03-30\n\n<!-- 使用 prompts/synthesis/consensus-matrix.md 模板生成 -->\n

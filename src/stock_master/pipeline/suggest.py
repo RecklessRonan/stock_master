@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -39,7 +39,7 @@ class SuggestBundle:
     context_paths: dict[str, str]  # code -> context.md 相对路径
     portfolio_text: str
     portfolio_data: dict
-    run_date: str = field(default_factory=lambda: date.today().isoformat())
+    run_date: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d-%H%M"))
 
 
 # ---------------------------------------------------------------------------
