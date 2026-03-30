@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Storage & artifacts (large/binary files)
+storage/*.db
+storage/*.db-journal
+artifacts/**/*.png
+artifacts/**/*.jpg
+artifacts/**/*.csv
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local

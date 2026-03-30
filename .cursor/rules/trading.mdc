@@ -1,0 +1,36 @@
+---
+description: 交易记录与风控规则
+globs: "journal/**/*,strategies/**/*"
+---
+
+# 交易记录规则
+
+## 记录规范
+
+每笔交易必须关联：
+- `research_ref`：指向触发此交易的调研目录
+- `decision_ref`：指向对应的 decision.md
+- `review_date`：预设的下次复盘日期
+
+## 交易纪律
+
+- 单只股票仓位不超过总资金 20%
+- 必须设置止损价，不允许无止损的持仓
+- 亏损超过 8% 时触发强制复盘
+- 重大事件（财报、年报）前后 3 天内不做大仓位变动
+
+## 复盘要求
+
+复盘时必须回答：
+1. 当时的投资论点是什么？
+2. 实际发生了什么？与预期是否一致？
+3. 论点是否仍然有效？
+4. 学到了什么？下次怎么改进？
+
+## 文件格式
+
+- `journal/trades/` — YAML 格式的交易记录
+- `journal/entries/` — Markdown 叙事日志
+- `journal/reviews/` — Markdown 复盘
+- `journal/portfolio.yaml` — 当前持仓快照
+- `journal/watchlist.yaml` — 自选股与监控条件

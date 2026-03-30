@@ -1,0 +1,11 @@
+updated_at: '2026-03-30'
+positions:
+- code: '002273'
+  name: 水晶光电
+  shares: 500
+  avg_cost: 22.38
+  strategy: ''
+  stop_loss: null
+  take_profit: null
+  research_ref: research/002273/2026-03-30
+  notes: ''

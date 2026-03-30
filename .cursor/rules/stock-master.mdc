@@ -1,0 +1,40 @@
+---
+description: 股票大师全局项目上下文
+globs: "**/*"
+---
+
+# Stock Master 项目规则
+
+## 项目概述
+
+这是一个本地优先的个人股票投资决策系统，覆盖数据采集、多模型调研、策略讨论、交易记录与复盘的完整闭环。
+
+## 核心原则
+
+- **事实/判断/行动分层**：数据与证据 → 多模型分角色研究 → 人类最终裁决
+- **本地优先**：所有研究、决策、交易数据保存在本地
+- **人工确认**：任何涉及真实交易的建议必须由人类确认，AI 不直接执行交易
+- **可追溯**：每笔交易可回链到原始调研与决策逻辑
+
+## 目录结构
+
+- `src/stock_master/` — Python 核心引擎
+- `prompts/` — AI 调研角色模板
+- `research/{code}/{date}/` — 调研产物（context / agents / synthesis / decision）
+- `journal/` — 交易记录（trades/）、叙事日志（entries/）、复盘（reviews/）
+- `strategies/` — 策略模板
+- `storage/` — SQLite 缓存与本地数据库
+
+## 常用命令
+
+```bash
+sm data <code>                # 拉取数据并生成研究上下文
+sm score <code>               # 五维量化评分
+sm compare <code1> <code2>    # 多股对比
+```
+
+## 编码规范
+
+- Python 3.12+，类型注解，Pydantic v2 模型
+- 使用 ruff 做 lint/format
+- 领域对象定义在 `src/stock_master/models/`

@@ -1,0 +1,40 @@
+---
+description: 股票调研工作流规则
+globs: "research/**/*,prompts/**/*"
+---
+
+# 调研工作流规则
+
+## 标准流程
+
+1. **数据准备**：先运行 `sm data <code>` 生成 `research/{code}/{date}/context.md`
+2. **分角色分析**：使用 `prompts/research/` 下的模板分别做基本面、财务、风险、技术面、行业分析
+3. **综合研判**：用 `prompts/synthesis/consensus-matrix.md` 汇总分歧与共识
+4. **投资论点**：用 `prompts/synthesis/investment-thesis.md` 生成论点草案
+5. **人工裁决**：补充仓位、触发条件、失效条件、复盘日期
+
+## 产物目录约定
+
+```
+research/{code}/{YYYY-MM-DD}/
+├── context.md          # 自动生成的数据上下文
+├── agents/
+│   ├── fundamental.md  # 基本面
+│   ├── financial.md    # 财务
+│   ├── risk.md         # 风险
+│   ├── technical.md    # 技术面
+│   └── industry.md     # 行业
+├── synthesis.md        # 共识/分歧矩阵
+└── decision.md         # 最终决策
+```
+
+## 分析规范
+
+- 每个角色报告必须包含：**核心结论**、**看多/看空理由**、**信心评分**
+- 综合报告必须先输出 **共识/分歧** 再给结论，禁止直接写"应该买入"
+- decision.md 必须包含：**触发条件**、**失效条件**、**计划仓位**、**复盘日期**
+- 引用数据时注明来源和时间
+
+## 历史研究加载
+
+分析某只股票时，应检查 `research/{code}/` 下是否有历史调研，了解之前的论点与判断。
