@@ -1,4 +1,4 @@
-"""AkShare 数据采集模块."""
+"""AkShare 数据采集模块，支持 A 股与港股."""
 
 from __future__ import annotations
 
@@ -9,8 +9,24 @@ import akshare as ak
 import pandas as pd
 
 
+def is_hk_stock(code: str) -> bool:
+    """判断股票代码是否为港股（5 位数字）."""
+    digits = code.lstrip("0")
+    return len(code) == 5 or (len(code) > 0 and len(digits) <= 4 and code.isdigit())
+
+
+# ---------------------------------------------------------------------------
+# 基本信息
+# ---------------------------------------------------------------------------
+
 def fetch_stock_info(code: str) -> dict:
-    """获取股票基本信息."""
+    """获取股票基本信息（自动区分 A 股/港股）."""
+    if is_hk_stock(code):
+        return _fetch_stock_info_hk(code)
+    return _fetch_stock_info_a(code)
+
+
+def _fetch_stock_info_a(code: str) -> dict:
     try:
         df = ak.stock_individual_info_em(symbol=code)
         info = {}
@@ -21,6 +37,40 @@ def fetch_stock_info(code: str) -> dict:
         return {"error": str(e)}
 
 
+def _fetch_stock_info_hk(code: str) -> dict:
+    try:
+        sec = ak.stock_hk_security_profile_em(symbol=code)
+        info: dict = {}
+        if not sec.empty:
+            row = sec.iloc[0]
+            info["股票代码"] = code
+            info["股票简称"] = str(row.get("证券简称", code))
+            info["上市日期"] = str(row.get("上市日期", ""))[:10]
+            info["证券类型"] = str(row.get("证券类型", ""))
+            info["交易所"] = str(row.get("交易所", ""))
+            info["每手股数"] = str(row.get("每手股数", ""))
+            info["沪港通"] = str(row.get("是否沪港通标的", ""))
+            info["深港通"] = str(row.get("是否深港通标的", ""))
+        try:
+            comp = ak.stock_hk_company_profile_em(symbol=code)
+            if not comp.empty:
+                crow = comp.iloc[0]
+                info["公司名称"] = str(crow.get("公司名称", ""))
+                info["行业"] = str(crow.get("所属行业", ""))
+                info["董事长"] = str(crow.get("董事长", ""))
+                info["员工人数"] = str(crow.get("员工人数", ""))
+                info["公司网址"] = str(crow.get("公司网址", ""))
+        except Exception:
+            pass
+        return info if info else {"error": "未获取到港股基本信息"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# K 线
+# ---------------------------------------------------------------------------
+
 def fetch_daily_kline(
     code: str,
     start_date: Optional[str] = None,
@@ -28,12 +78,20 @@ def fetch_daily_kline(
     period: str = "daily",
     adjust: str = "qfq",
 ) -> pd.DataFrame:
-    """获取日 K 线数据（前复权）."""
+    """获取日 K 线数据（前复权），自动区分 A 股/港股."""
     if end_date is None:
         end_date = datetime.now().strftime("%Y%m%d")
     if start_date is None:
         start_date = (datetime.now() - timedelta(days=365)).strftime("%Y%m%d")
 
+    if is_hk_stock(code):
+        return _fetch_daily_kline_hk(code, start_date, end_date, period, adjust)
+    return _fetch_daily_kline_a(code, start_date, end_date, period, adjust)
+
+
+def _fetch_daily_kline_a(
+    code: str, start_date: str, end_date: str, period: str, adjust: str,
+) -> pd.DataFrame:
     df = ak.stock_zh_a_hist(
         symbol=code,
         period=period,
@@ -44,8 +102,31 @@ def fetch_daily_kline(
     return df
 
 
+def _fetch_daily_kline_hk(
+    code: str, start_date: str, end_date: str, period: str, adjust: str,
+) -> pd.DataFrame:
+    df = ak.stock_hk_hist(
+        symbol=code,
+        period=period,
+        start_date=start_date,
+        end_date=end_date,
+        adjust=adjust,
+    )
+    return df
+
+
+# ---------------------------------------------------------------------------
+# 财务摘要
+# ---------------------------------------------------------------------------
+
 def fetch_financial_summary(code: str) -> pd.DataFrame:
     """获取最近的财务摘要数据."""
+    if is_hk_stock(code):
+        return _fetch_financial_summary_hk(code)
+    return _fetch_financial_summary_a(code)
+
+
+def _fetch_financial_summary_a(code: str) -> pd.DataFrame:
     try:
         df = ak.stock_financial_abstract_ths(symbol=code, indicator="按年度")
         return df.head(5)
@@ -57,8 +138,67 @@ def fetch_financial_summary(code: str) -> pd.DataFrame:
             return pd.DataFrame()
 
 
+def _fetch_financial_summary_hk(code: str) -> pd.DataFrame:
+    try:
+        df = ak.stock_financial_hk_analysis_indicator_em(symbol=code, indicator="年度")
+        if df.empty:
+            return pd.DataFrame()
+        col_map = {
+            "REPORT_DATE": "报告期",
+            "OPERATE_INCOME": "营业收入",
+            "OPERATE_INCOME_YOY": "营收同比(%)",
+            "GROSS_PROFIT": "毛利",
+            "GROSS_PROFIT_RATIO": "毛利率(%)",
+            "HOLDER_PROFIT": "归母净利润",
+            "HOLDER_PROFIT_YOY": "净利同比(%)",
+            "NET_PROFIT_RATIO": "净利率(%)",
+            "BASIC_EPS": "基本每股收益",
+            "BPS": "每股净资产",
+            "ROE_AVG": "ROE(%)",
+            "ROA": "ROA(%)",
+            "DEBT_ASSET_RATIO": "资产负债率(%)",
+            "CURRENT_RATIO": "流动比率",
+        }
+        keep = [c for c in col_map if c in df.columns]
+        result = df[keep].head(5).rename(columns=col_map)
+        if "报告期" in result.columns:
+            result["报告期"] = result["报告期"].astype(str).str[:10]
+        for col in result.columns:
+            if col == "报告期":
+                continue
+            if col in ("营业收入", "毛利", "归母净利润"):
+                result[col] = result[col].apply(_fmt_amount)
+            else:
+                result[col] = result[col].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "N/A")
+        return result
+    except Exception:
+        return pd.DataFrame()
+
+
+def _fmt_amount(val) -> str:
+    """将数值金额格式化为亿/万级别的可读字符串."""
+    if pd.isna(val):
+        return "N/A"
+    v = float(val)
+    if abs(v) >= 1e8:
+        return f"{v / 1e8:.2f}亿"
+    if abs(v) >= 1e4:
+        return f"{v / 1e4:.2f}万"
+    return f"{v:.2f}"
+
+
+# ---------------------------------------------------------------------------
+# 估值
+# ---------------------------------------------------------------------------
+
 def fetch_valuation(code: str) -> dict:
     """获取当前估值指标."""
+    if is_hk_stock(code):
+        return _fetch_valuation_hk(code)
+    return _fetch_valuation_a(code)
+
+
+def _fetch_valuation_a(code: str) -> dict:
     try:
         df = ak.stock_a_indicator_lg(symbol=code)
         if df.empty:
@@ -76,6 +216,33 @@ def fetch_valuation(code: str) -> dict:
     except Exception:
         return {}
 
+
+def _fetch_valuation_hk(code: str) -> dict:
+    result: dict = {}
+    indicators = {
+        "市盈率(TTM)": "pe_ttm",
+        "市盈率(静)": "pe",
+        "市净率": "pb",
+        "总市值": "total_mv",
+    }
+    for cn_name, key in indicators.items():
+        try:
+            df = ak.stock_hk_valuation_baidu(
+                symbol=code, indicator=cn_name, period="近一年",
+            )
+            if not df.empty:
+                latest = df.iloc[-1]
+                val = latest.get("value")
+                if pd.notna(val):
+                    result[key] = float(val)
+        except Exception:
+            continue
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 新闻
+# ---------------------------------------------------------------------------
 
 def fetch_news(code: str, limit: int = 10) -> list[dict]:
     """获取个股近期新闻."""
