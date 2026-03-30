@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 import shutil
 import subprocess
 import time
@@ -16,6 +17,10 @@ SUGGEST_MODELS: list[tuple[str, str]] = [
 ]
 
 SYNTHESIS_MODEL = SUGGEST_MODELS[0]  # gpt-5.4-xhigh
+
+_RETRYABLE_ERRORS = ("ENOENT", "cli-config.json", "rate limit", "429", "503")
+_MAX_RETRIES = 2
+_RETRY_BASE_DELAY = 3.0
 
 
 @dataclass
@@ -47,6 +52,20 @@ def ensure_agent_available() -> str:
     return path
 
 
+def _is_retryable(stderr: str, elapsed: float) -> bool:
+    """判断失败是否为可重试的瞬态错误（文件竞争、速率限制等）."""
+    if elapsed > 30:
+        return False
+    return any(tok in stderr for tok in _RETRYABLE_ERRORS)
+
+
+def _run_agent_once(
+    cmd: list[str],
+    timeout: Optional[int],
+) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+
 def run_agent(
     prompt: str,
     model_id: str,
@@ -55,8 +74,12 @@ def run_agent(
 ) -> AgentResult:
     """调用 agent CLI 并返回结构化结果.
 
-    使用默认 agent 模式（完整工具集），``--trust`` 跳过交互确认，
-    ``--print`` 把响应输出到 stdout，``--force`` 允许自动执行命令。
+    使用默认 agent 模式（完整工具集 + max mode 由全局配置控制），
+    ``--trust`` 跳过工作区信任确认，``--print`` 把响应输出到 stdout，
+    ``--force`` 允许自动执行命令，``--approve-mcps`` 跳过 MCP 授权弹窗。
+
+    并发调用时 agent CLI 可能因 cli-config.json 文件锁竞争而瞬时失败，
+    本函数内置最多 {_MAX_RETRIES} 次带退避抖动的自动重试。
     """
     agent_bin = ensure_agent_available()
     display_name = display_name or model_id
@@ -66,60 +89,69 @@ def run_agent(
         "--print",
         "--trust",
         "--force",
+        "--approve-mcps",
         "--output-format", "text",
         "--model", model_id,
         prompt,
     ]
 
-    start = time.monotonic()
-    try:
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        elapsed = time.monotonic() - start
+    last_result: AgentResult | None = None
 
-        if proc.returncode != 0:
-            return AgentResult(
+    for attempt in range(_MAX_RETRIES + 1):
+        start = time.monotonic()
+        try:
+            proc = _run_agent_once(cmd, timeout)
+            elapsed = time.monotonic() - start
+
+            if proc.returncode == 0:
+                return AgentResult(
+                    model_id=model_id,
+                    display_name=display_name,
+                    output=proc.stdout,
+                    error=proc.stderr,
+                    returncode=0,
+                    elapsed_s=round(elapsed, 2),
+                    success=True,
+                )
+
+            error_msg = proc.stderr or f"agent exited with code {proc.returncode}"
+            last_result = AgentResult(
                 model_id=model_id,
                 display_name=display_name,
                 output=proc.stdout,
-                error=proc.stderr or f"agent exited with code {proc.returncode}",
+                error=error_msg,
                 returncode=proc.returncode,
                 elapsed_s=round(elapsed, 2),
                 success=False,
             )
 
-        return AgentResult(
-            model_id=model_id,
-            display_name=display_name,
-            output=proc.stdout,
-            error=proc.stderr,
-            returncode=0,
-            elapsed_s=round(elapsed, 2),
-            success=True,
-        )
+            if attempt < _MAX_RETRIES and _is_retryable(error_msg, elapsed):
+                delay = _RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 2)
+                time.sleep(delay)
+                continue
 
-    except subprocess.TimeoutExpired:
-        elapsed = time.monotonic() - start
-        return AgentResult(
-            model_id=model_id,
-            display_name=display_name,
-            error=f"agent 调用超时（{timeout}s）",
-            elapsed_s=round(elapsed, 2),
-            success=False,
-            returncode=-1,
-        )
+            return last_result
 
-    except Exception as exc:  # noqa: BLE001
-        elapsed = time.monotonic() - start
-        return AgentResult(
-            model_id=model_id,
-            display_name=display_name,
-            error=str(exc),
-            elapsed_s=round(elapsed, 2),
-            success=False,
-            returncode=-1,
-        )
+        except subprocess.TimeoutExpired:
+            elapsed = time.monotonic() - start
+            return AgentResult(
+                model_id=model_id,
+                display_name=display_name,
+                error=f"agent 调用超时（{timeout}s）",
+                elapsed_s=round(elapsed, 2),
+                success=False,
+                returncode=-1,
+            )
+
+        except Exception as exc:  # noqa: BLE001
+            elapsed = time.monotonic() - start
+            return AgentResult(
+                model_id=model_id,
+                display_name=display_name,
+                error=str(exc),
+                elapsed_s=round(elapsed, 2),
+                success=False,
+                returncode=-1,
+            )
+
+    return last_result  # type: ignore[return-value]

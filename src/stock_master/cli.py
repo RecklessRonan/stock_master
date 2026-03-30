@@ -445,7 +445,7 @@ def _process_snapshot(image_path: Path, snapshots_dir: Path, no_ai: bool, note: 
     console.print("[bold]正在调用 AI 识别截图并更新持仓...[/]\n")
 
     result = subprocess.run(
-        ["agent", "-p", "--force", prompt],
+        ["agent", "-p", "--trust", "--force", "--approve-mcps", prompt],
         text=True,
     )
 

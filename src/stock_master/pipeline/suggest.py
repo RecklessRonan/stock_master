@@ -246,6 +246,8 @@ def run_model_suggestions(
             results.append(result)
             status = "[bold green]完成[/]" if result.success else "[bold red]失败[/]"
             console.print(f"  {mname}: {status}（{result.elapsed_s:.1f}s）")
+            if not result.success and result.error:
+                console.print(f"    [dim red]↳ {result.error[:200]}[/]")
 
     return results
 

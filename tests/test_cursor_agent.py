@@ -48,6 +48,7 @@ class TestRunAgent:
         assert "gpt-5.4-xhigh" in cmd
         assert "--trust" in cmd
         assert "--force" in cmd
+        assert "--approve-mcps" in cmd
         assert "--mode" not in cmd
 
     def test_nonzero_exit(self):
