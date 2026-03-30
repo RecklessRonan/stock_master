@@ -1,9 +1,17 @@
 updated_at: '2026-03-30'
+total_assets: 800417.82
+market_value: 22380.00
+available: 778037.82
+position_ratio: 2.80%
+snapshot: journal/snapshots/2026-03-30-1608.png
 positions:
 - code: '002273'
   name: 水晶光电
-  shares: 500
-  avg_cost: 22.38
+  shares: 1000
+  avg_cost: 22.082
+  latest_price: 22.380
+  pnl: 298.23
+  pnl_pct: 1.35%
   strategy: ''
   stop_loss: null
   take_profit: null
