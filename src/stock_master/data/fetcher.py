@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import time
+import warnings
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Optional
@@ -32,9 +34,11 @@ def _bypass_proxy():
 
 
 def is_hk_stock(code: str) -> bool:
-    """判断股票代码是否为港股（5 位数字）."""
-    digits = code.lstrip("0")
-    return len(code) == 5 or (len(code) > 0 and len(digits) <= 4 and code.isdigit())
+    """判断股票代码是否为港股.
+
+    A 股代码固定 6 位数字；港股代码 5 位及以下。
+    """
+    return code.isdigit() and len(code) <= 5
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +154,6 @@ def _fetch_daily_kline_a_tx(
     code: str, start_date: str, end_date: str, adjust: str,
 ) -> pd.DataFrame:
     """东方财富 K 线接口不可用时，降级到腾讯数据源."""
-    import warnings
     warnings.warn(
         f"东方财富 K 线接口不可用，已降级到腾讯数据源 ({code})",
         stacklevel=3,
@@ -168,16 +171,39 @@ def _fetch_daily_kline_a_tx(
 
 def _fetch_daily_kline_hk(
     code: str, start_date: str, end_date: str, period: str, adjust: str,
+    *,
+    _max_retries: int = 3,
 ) -> pd.DataFrame:
-    with _bypass_proxy():
-        df = ak.stock_hk_hist(
-            symbol=code,
-            period=period,
-            start_date=start_date,
-            end_date=end_date,
-            adjust=adjust,
-        )
-    return df
+    for attempt in range(_max_retries):
+        try:
+            with _bypass_proxy():
+                df = ak.stock_hk_hist(
+                    symbol=code,
+                    period=period,
+                    start_date=start_date,
+                    end_date=end_date,
+                    adjust=adjust,
+                )
+            return df
+        except (ConnectionError, OSError) as e:
+            if attempt < _max_retries - 1:
+                wait = 2 ** attempt
+                warnings.warn(
+                    f"港股 K 线请求失败 ({code})，{wait}s 后重试 "
+                    f"({attempt + 1}/{_max_retries}): {e}",
+                    stacklevel=2,
+                )
+                time.sleep(wait)
+            else:
+                warnings.warn(
+                    f"港股 K 线请求最终失败 ({code})，已重试 {_max_retries} 次: {e}",
+                    stacklevel=2,
+                )
+                return pd.DataFrame()
+        except Exception as e:
+            warnings.warn(f"港股 K 线数据获取异常 ({code}): {e}", stacklevel=2)
+            return pd.DataFrame()
+    return pd.DataFrame()
 
 
 # ---------------------------------------------------------------------------

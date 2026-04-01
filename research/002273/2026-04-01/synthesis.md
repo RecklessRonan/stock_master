@@ -1,0 +1,1 @@
+# 综合研判：002273 (002273)\n\n> 日期：2026-04-01\n\n<!-- 使用 prompts/synthesis/consensus-matrix.md 模板生成 -->\n
