@@ -491,7 +491,13 @@ def review(
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 
 SNAPSHOT_PROMPT_TEMPLATE = """\
-读取持仓截图 {image_path}，完成以下操作：
+工作区根目录即当前仓库。**你必须先通过工具读取下面绝对路径的图像文件**（PNG/JPG 等），
+逐字逐字段从截图里识别数字与文字；**禁止**仅凭 journal/portfolio.yaml、对话记忆或常识臆造持仓数据。
+若无法读取该文件，先说明原因并中止。
+
+截图文件（绝对路径）：{image_abs}
+
+完成以下操作：
 
 ## 1. 重命名截图
 从截图中找到「更新时间」（格式通常为 HH:MM:SS），结合今天的日期，
@@ -599,7 +605,10 @@ def snapshot(
         if not pending:
             _list_snapshots(snapshots_dir)
             return
-        console.print(f"[bold]发现 {len(pending)} 张待处理截图[/]")
+        console.print(
+            f"[bold]发现 {len(pending)} 张待处理截图[/] "
+            "[dim]（按修改时间从新到旧依次处理；若只要最新一张，请先移走或归档其它待处理文件）[/]"
+        )
         for p in pending:
             _process_snapshot(p, snapshots_dir, no_ai, note)
         return
@@ -650,35 +659,63 @@ def _list_snapshots(snapshots_dir: Path) -> None:
 
 
 def _find_pending_snapshots(snapshots_dir: Path) -> list[Path]:
-    return sorted(
-        f for f in snapshots_dir.iterdir()
+    """未归档截图；按 mtime 降序（优先处理最新放入的一张）。"""
+    candidates = [
+        f
+        for f in snapshots_dir.iterdir()
         if f.suffix.lower() in IMAGE_SUFFIXES and not _is_archived(f.stem)
-    )
+    ]
+    return sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
 
 
 def _process_snapshot(image_path: Path, snapshots_dir: Path, no_ai: bool, note: str) -> None:
-    import shutil
     import subprocess
+
+    from stock_master.pipeline.cursor_agent import (
+        _agent_env,
+        agent_cli_install_hint,
+        resolve_agent_command,
+    )
 
     if no_ai:
         console.print(f"[bold green]截图已导入：{image_path}[/]")
         console.print("[dim]跳过 AI 处理。可在 Cursor 中手动处理重命名与持仓更新。[/]")
         return
 
-    if not shutil.which("agent"):
+    cmd_prefix = resolve_agent_command()
+    if not cmd_prefix:
         console.print("[bold yellow]未检测到 agent CLI，无法自动处理。[/]")
-        console.print("[dim]安装方法：curl https://cursor.com/install -fsS | bash[/]")
+        console.print(f"[dim]{agent_cli_install_hint()}[/]")
         console.print(f"[dim]截图已保存在 {image_path}，请在 Cursor 中手动处理。[/]")
         return
 
     old_portfolio = _load_portfolio_snapshot()
 
-    prompt = SNAPSHOT_PROMPT_TEMPLATE.format(image_path=image_path, ext=image_path.suffix.lower())
+    repo_root = Path.cwd().resolve()
+    image_abs = str(Path(image_path).resolve())
+    prompt = SNAPSHOT_PROMPT_TEMPLATE.format(
+        image_abs=image_abs,
+        ext=image_path.suffix.lower(),
+    )
+    console.print(f"[dim]截图文件：{image_path.name} → {image_abs}[/]")
     console.print("[bold]正在调用 AI 识别截图并更新持仓...[/]\n")
 
     result = subprocess.run(
-        ["agent", "-p", "--trust", "--force", "--approve-mcps", prompt],
+        [
+            *cmd_prefix,
+            "--print",
+            "--trust",
+            "--force",
+            "--approve-mcps",
+            "--output-format",
+            "text",
+            "--workspace",
+            str(repo_root),
+            prompt,
+        ],
         text=True,
+        cwd=repo_root,
+        env=_agent_env(),
     )
 
     console.print()
@@ -693,6 +730,27 @@ def _process_snapshot(image_path: Path, snapshots_dir: Path, no_ai: bool, note: 
                 console.print(f"  备注已保存：{renamed.with_suffix('.txt')}")
     else:
         console.print(f"[bold red]AI 处理出错（exit {result.returncode}）[/]")
+        console.print(
+            "[dim]若提示 Authentication / login，请执行 [bold]sm agent-login[/]，"
+            "或设置环境变量 CURSOR_API_KEY 后重试。[/]"
+        )
+
+
+@app.command("agent-login")
+def agent_login() -> None:
+    """登录 Cursor Agent CLI（snapshot / suggest 等功能依赖已登录的 agent）。"""
+    import subprocess
+
+    from stock_master.pipeline.cursor_agent import _agent_env, agent_cli_install_hint, resolve_agent_command
+
+    cmd_prefix = resolve_agent_command()
+    if not cmd_prefix:
+        console.print("[bold red]未找到 agent CLI。[/]")
+        console.print(f"[dim]{agent_cli_install_hint()}[/]")
+        raise typer.Exit(1)
+
+    console.print(f"[dim]使用：{cmd_prefix[0]}[/]")
+    raise typer.Exit(subprocess.call([*cmd_prefix, "login"], env=_agent_env()))
 
 
 def _load_portfolio_snapshot() -> dict:

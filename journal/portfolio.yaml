@@ -1,19 +1,31 @@
-updated_at: '2026-03-30'
-total_assets: 800417.82
-market_value: 22380.00
-available: 778037.82
-position_ratio: 2.80%
-snapshot: journal/snapshots/2026-03-30-1608.png
+updated_at: '2026-04-02'
+total_assets: 802482.02
+market_value: 46058.74
+available: 757039.92
+position_ratio: 5.74%
+snapshot: journal/snapshots/2026-04-02-2137.png
 positions:
 - code: '002273'
   name: 水晶光电
   shares: 1000
   avg_cost: 22.082
-  latest_price: 22.380
-  pnl: 298.23
-  pnl_pct: 1.35%
+  latest_price: 24.840
+  pnl: 2758.23
+  pnl_pct: 12.49%
   strategy: ''
   stop_loss: null
   take_profit: null
   research_ref: research/002273/2026-03-30
+  notes: ''
+- code: '03690'
+  name: 美团－Ｗ
+  shares: 300
+  avg_cost: 70.355
+  latest_price: 80.250
+  pnl: 112.21
+  pnl_pct: 0.53%
+  strategy: ''
+  stop_loss: null
+  take_profit: null
+  research_ref: ''
   notes: ''

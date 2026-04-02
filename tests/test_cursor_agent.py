@@ -5,24 +5,63 @@ from __future__ import annotations
 from unittest.mock import patch, MagicMock
 
 import pytest
+import sys
 
 from stock_master.pipeline.cursor_agent import (
     AgentResult,
     SUGGEST_MODELS,
     ensure_agent_available,
+    resolve_agent_command,
+    resolve_agent_executable,
     run_agent,
+)
+
+_MOCK_CMD = patch(
+    "stock_master.pipeline.cursor_agent._resolve_win32_node_command",
+    return_value=None,
 )
 
 
 class TestEnsureAgentAvailable:
     def test_found(self):
-        with patch("shutil.which", return_value="/usr/local/bin/agent"):
+        with _MOCK_CMD, patch("shutil.which", return_value="/usr/local/bin/agent"):
             assert ensure_agent_available() == "/usr/local/bin/agent"
 
     def test_not_found(self):
-        with patch("shutil.which", return_value=None):
+        with patch(
+            "stock_master.pipeline.cursor_agent.resolve_agent_executable",
+            return_value=None,
+        ):
             with pytest.raises(RuntimeError, match="未检测到 agent CLI"):
                 ensure_agent_available()
+
+
+class TestResolveAgentExecutable:
+    def test_windows_node_direct(self, tmp_path, monkeypatch):
+        """When node.exe + index.js exist in a version dir, prefer them."""
+        monkeypatch.setattr(sys, "platform", "win32")
+        ver_dir = tmp_path / "cursor-agent" / "versions" / "2026.03.30-a5d3e17"
+        ver_dir.mkdir(parents=True)
+        (ver_dir / "node.exe").write_bytes(b"")
+        (ver_dir / "index.js").write_bytes(b"")
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        with patch("shutil.which", return_value=None):
+            cmd = resolve_agent_command()
+            assert cmd == [str(ver_dir / "node.exe"), str(ver_dir / "index.js")]
+
+    def test_windows_localappdata_fallback(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "win32")
+        agent_dir = tmp_path / "cursor-agent"
+        agent_dir.mkdir()
+        (agent_dir / "agent.cmd").write_bytes(b"@echo off\r\n")
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        with _MOCK_CMD, patch("shutil.which", return_value=None):
+            assert resolve_agent_executable() == str(agent_dir / "agent.cmd")
+
+    def test_not_found_non_windows(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "linux")
+        with patch("shutil.which", return_value=None):
+            assert resolve_agent_executable() is None
 
 
 class TestRunAgent:
@@ -33,6 +72,7 @@ class TestRunAgent:
         fake_proc.stderr = ""
 
         with (
+            _MOCK_CMD,
             patch("shutil.which", return_value="/usr/local/bin/agent"),
             patch("subprocess.run", return_value=fake_proc) as mock_run,
         ):
@@ -58,6 +98,7 @@ class TestRunAgent:
         fake_proc.stderr = "error details"
 
         with (
+            _MOCK_CMD,
             patch("shutil.which", return_value="/usr/local/bin/agent"),
             patch("subprocess.run", return_value=fake_proc),
         ):
@@ -71,6 +112,7 @@ class TestRunAgent:
         import subprocess as sp
 
         with (
+            _MOCK_CMD,
             patch("shutil.which", return_value="/usr/local/bin/agent"),
             patch("subprocess.run", side_effect=sp.TimeoutExpired(cmd="agent", timeout=10)),
         ):

@@ -1,0 +1,49 @@
+run_date: 2026-04-02-2247
+codes:
+- '00100'
+- '002273'
+- 09988
+- 09999
+- '300920'
+context_refs:
+  '00100': research\00100\2026-04-02\context.md
+  '002273': research\002273\2026-04-02\context.md
+  09988: research\09988\2026-04-02\context.md
+  09999: research\09999\2026-04-02\context.md
+  '300920': research\300920\2026-04-02\context.md
+portfolio_snapshot: journal\portfolio.yaml
+models:
+- model_id: gemini-3.1-pro
+  display_name: Gemini 3.1 Pro
+  success: false
+  elapsed_s: 2.77
+  output_file: gemini-3.1-pro.md
+  error: 'Cannot use this model: gemini-3.1-pro. Available models: auto, composer-2-fast,
+    composer-2, composer-1.5, grok-4-20, grok-4-20-thinking, kimi-k2.5
+
+    '
+- model_id: gpt-5.4-xhigh
+  display_name: GPT-5.4 Extra High
+  success: false
+  elapsed_s: 3.3
+  output_file: gpt-5.4-xhigh.md
+  error: 'Cannot use this model: gpt-5.4-xhigh. Available models: auto, composer-2-fast,
+    composer-2, composer-1.5, grok-4-20, grok-4-20-thinking, kimi-k2.5
+
+    '
+- model_id: claude-4.6-opus-high-thinking
+  display_name: Opus 4.6 Thinking
+  success: false
+  elapsed_s: 5.3
+  output_file: claude-4.6-opus-high-thinking.md
+  error: 'Cannot use this model: claude-4.6-opus-high-thinking. Available models:
+    auto, composer-2-fast, composer-2, composer-1.5, grok-4-20, grok-4-20-thinking,
+    kimi-k2.5
+
+    '
+synthesis:
+  model_id: gpt-5.4-xhigh
+  success: false
+  elapsed_s: 0.0
+  output_file: final-gpt-5.4-xhigh.md
+  error: 所有模型均调用失败，无法生成综合报告
