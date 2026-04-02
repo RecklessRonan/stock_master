@@ -109,13 +109,59 @@ def resolve_agent_executable() -> Optional[str]:
     return cmd[0] if cmd else None
 
 
+def _read_win32_system_proxy() -> str | None:
+    """Read the Windows system proxy from the registry (IE settings)."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+        ) as key:
+            enabled, _ = winreg.QueryValueEx(key, "ProxyEnable")
+            if not enabled:
+                return None
+            server, _ = winreg.QueryValueEx(key, "ProxyServer")
+            return str(server) if server else None
+    except OSError:
+        return None
+
+
+_PROXY_BOOTSTRAP = Path(__file__).with_name("_node_proxy_bootstrap.js")
+
+
 def _agent_env() -> dict[str, str]:
-    """Extra env vars that the .cmd/.ps1 wrapper would normally set."""
+    """Extra env vars that the .cmd/.ps1 wrapper would normally set.
+
+    Also injects HTTP(S)_PROXY from the Windows system proxy when the
+    shell environment doesn't already have one, and loads a Node.js
+    bootstrap script (via NODE_OPTIONS) that tunnels HTTP/2 connections
+    through the proxy — this ensures the agent CLI's gRPC channel goes
+    through the same proxy tunnel as Cursor IDE, fixing "model provider
+    doesn't serve your region" errors.
+    """
     env = os.environ.copy()
     env.setdefault("CURSOR_INVOKED_AS", "agent.cmd")
     local = os.environ.get("LOCALAPPDATA", "")
     if local:
         env.setdefault("NODE_COMPILE_CACHE", str(Path(local) / "cursor-compile-cache"))
+
+    proxy_keys = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
+    if not any(env.get(k) for k in proxy_keys):
+        sys_proxy = _read_win32_system_proxy()
+        if sys_proxy:
+            proxy_url = sys_proxy if "://" in sys_proxy else f"http://{sys_proxy}"
+            for k in proxy_keys:
+                env[k] = proxy_url
+
+    if any(env.get(k) for k in proxy_keys) and _PROXY_BOOTSTRAP.is_file():
+        req_flag = f"--require {_PROXY_BOOTSTRAP}"
+        existing = env.get("NODE_OPTIONS", "")
+        if str(_PROXY_BOOTSTRAP) not in existing:
+            env["NODE_OPTIONS"] = f"{existing} {req_flag}".strip() if existing else req_flag
+
     return env
 
 
