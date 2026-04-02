@@ -10,6 +10,8 @@ import yaml
 
 from stock_master.pipeline.cursor_agent import AgentResult
 from stock_master.pipeline.suggest import (
+    _build_model_prompt,
+    _build_synthesis_prompt,
     scan_researched_codes,
     load_latest_contexts,
     build_inputs_bundle,
@@ -87,6 +89,107 @@ class TestBuildInputsBundle:
         assert bundle.codes == ["002273"]
         assert "研究上下文" in bundle.contexts["002273"]
         assert bundle.portfolio_data["positions"] == []
+
+    def test_bundle_loads_dossier_and_research_outputs(self, tmp_path):
+        research_dir = tmp_path / "002273" / "2026-04-02"
+        agents_dir = research_dir / "agents"
+        agents_dir.mkdir(parents=True)
+
+        ctx_file = research_dir / "context.md"
+        ctx_file.write_text("# 研究上下文：测试", encoding="utf-8")
+        (research_dir / "dossier.yaml").write_text(
+            yaml.dump(
+                {
+                    "code": "002273",
+                    "stock_name": "测试股份",
+                    "rookie_action": {"verdict": "观察买点"},
+                },
+                allow_unicode=True,
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        (research_dir / "synthesis.md").write_text("# 综合研判\n\n盈利改善，关注估值。", encoding="utf-8")
+        (agents_dir / "fundamental.md").write_text("# 基本面\n\n产品结构优化。", encoding="utf-8")
+        (agents_dir / "risk.md").write_text("# 风险\n\n需要注意集中度。", encoding="utf-8")
+
+        portfolio_file = tmp_path / "portfolio.yaml"
+        portfolio_file.write_text(
+            yaml.dump(
+                {
+                    "updated_at": "2026-04-02",
+                    "positions": [
+                        {"code": "600000", "name": "银行A", "shares": 1000, "avg_cost": 10.0, "current_price": 10.0}
+                    ],
+                },
+                allow_unicode=True,
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+
+        with (
+            patch("stock_master.pipeline.suggest.RESEARCH_DIR", tmp_path),
+            patch("stock_master.pipeline.suggest.PORTFOLIO_PATH", portfolio_file),
+        ):
+            bundle = build_inputs_bundle(["002273"], {"002273": ctx_file})
+
+        assert bundle.dossiers["002273"]["code"] == "002273"
+        assert "fundamental" in bundle.research_notes["002273"]["agents"]
+        assert "盈利改善" in bundle.research_notes["002273"]["synthesis"]
+        assert bundle.portfolio_guardrails["position_count"] == 1
+
+    def test_model_prompt_includes_guardrails_and_research_digest(self, tmp_path):
+        bundle = SuggestBundle(
+            codes=["002273"],
+            contexts={"002273": "# 研究上下文：测试"},
+            context_paths={"002273": "research/002273/2026-04-02/context.md"},
+            dossiers={"002273": {"code": "002273", "rookie_action": {"verdict": "观察买点"}}},
+            research_notes={
+                "002273": {
+                    "agents": {"fundamental": "产品结构优化。"},
+                    "synthesis": "盈利改善，关注估值。",
+                }
+            },
+            portfolio_text="positions: []",
+            portfolio_data={"positions": []},
+            portfolio_guardrails={"max_single_position_pct": 25.0, "warnings": ["单票集中度过高"]},
+            run_date="2026-04-02-2200",
+        )
+
+        prompt = _build_model_prompt(bundle)
+
+        assert "组合风控约束" in prompt
+        assert "分角色研究摘录" in prompt
+        assert "单票集中度过高" in prompt
+        assert "观察买点" in prompt
+
+    def test_synthesis_prompt_keeps_portfolio_guardrails(self):
+        bundle = SuggestBundle(
+            codes=["002273"],
+            contexts={"002273": "# 研究上下文：测试"},
+            context_paths={"002273": "research/002273/2026-04-02/context.md"},
+            dossiers={},
+            research_notes={},
+            portfolio_text="positions: []",
+            portfolio_data={"positions": []},
+            portfolio_guardrails={"warnings": ["单票集中度过高"], "max_single_position_pct": 25.0},
+            run_date="2026-04-02-2200",
+        )
+        raw_results = [
+            AgentResult(
+                model_id="gpt-5.4-xhigh",
+                display_name="GPT-5.4 Extra High",
+                output="建议控制仓位。",
+                success=True,
+                elapsed_s=10.0,
+            )
+        ]
+
+        prompt = _build_synthesis_prompt(bundle, raw_results)
+
+        assert "组合风控约束" in prompt
+        assert "单票集中度过高" in prompt
 
 
 class TestSaveArtifacts:

@@ -18,6 +18,7 @@ from stock_master.pipeline.cursor_agent import (
     AgentResult,
     run_agent,
 )
+from stock_master.portfolio.guardrails import analyze_portfolio_guardrails
 
 console = Console()
 
@@ -39,6 +40,9 @@ class SuggestBundle:
     context_paths: dict[str, str]  # code -> context.md 相对路径
     portfolio_text: str
     portfolio_data: dict
+    dossiers: dict[str, dict] = field(default_factory=dict)
+    research_notes: dict[str, dict] = field(default_factory=dict)
+    portfolio_guardrails: dict = field(default_factory=dict)
     run_date: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d-%H%M"))
 
 
@@ -120,6 +124,33 @@ def _load_portfolio() -> tuple[dict, str]:
     return data, raw
 
 
+def _shorten_markdown(text: str, max_lines: int = 8) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return "\n".join(lines[:max_lines])
+
+
+def _load_research_digest(context_path: Path) -> tuple[dict, dict]:
+    research_dir = context_path.parent
+    dossier_path = research_dir / "dossier.yaml"
+    synthesis_path = research_dir / "synthesis.md"
+    agents_dir = research_dir / "agents"
+
+    dossier = {}
+    if dossier_path.exists():
+        dossier = yaml.safe_load(dossier_path.read_text(encoding="utf-8")) or {}
+
+    agents: dict[str, str] = {}
+    if agents_dir.exists():
+        for path in sorted(agents_dir.glob("*.md")):
+            agents[path.stem] = _shorten_markdown(path.read_text(encoding="utf-8"))
+
+    synthesis = ""
+    if synthesis_path.exists():
+        synthesis = _shorten_markdown(synthesis_path.read_text(encoding="utf-8"))
+
+    return dossier, {"agents": agents, "synthesis": synthesis}
+
+
 def build_inputs_bundle(
     codes: list[str],
     context_paths: dict[str, Path],
@@ -129,18 +160,28 @@ def build_inputs_bundle(
 
     contexts: dict[str, str] = {}
     rel_paths: dict[str, str] = {}
+    dossiers: dict[str, dict] = {}
+    research_notes: dict[str, dict] = {}
     for code in codes:
         p = context_paths.get(code)
         if p and p.exists():
             contexts[code] = p.read_text(encoding="utf-8")
             rel_paths[code] = str(p)
+            dossier, digest = _load_research_digest(p)
+            if dossier:
+                dossiers[code] = dossier
+            if digest["agents"] or digest["synthesis"]:
+                research_notes[code] = digest
 
     return SuggestBundle(
         codes=codes,
         contexts=contexts,
         context_paths=rel_paths,
+        dossiers=dossiers,
+        research_notes=research_notes,
         portfolio_text=portfolio_text,
         portfolio_data=portfolio_data,
+        portfolio_guardrails=analyze_portfolio_guardrails(portfolio_data),
     )
 
 
@@ -164,6 +205,11 @@ def _build_model_prompt(bundle: SuggestBundle) -> str:
     parts.append("\n## 当前持仓\n")
     parts.append(f"```yaml\n{bundle.portfolio_text}```\n")
 
+    parts.append("\n## 组合风控约束\n")
+    parts.append(
+        f"```yaml\n{yaml.dump(bundle.portfolio_guardrails, allow_unicode=True, sort_keys=False)}```\n"
+    )
+
     parts.append("\n## 研究标的上下文\n")
     for code in bundle.codes:
         ctx = bundle.contexts.get(code, "（无上下文）")
@@ -171,14 +217,31 @@ def _build_model_prompt(bundle: SuggestBundle) -> str:
         parts.append(ctx)
         parts.append("\n")
 
+        dossier = bundle.dossiers.get(code)
+        if dossier:
+            parts.append("#### 结构化 Dossier\n")
+            parts.append(f"```yaml\n{yaml.dump(dossier, allow_unicode=True, sort_keys=False)}```\n")
+
+        research_digest = bundle.research_notes.get(code, {})
+        if research_digest:
+            parts.append("#### 分角色研究摘录\n")
+            for role, excerpt in research_digest.get("agents", {}).items():
+                parts.append(f"- {role}: {excerpt}")
+            synthesis = research_digest.get("synthesis")
+            if synthesis:
+                parts.append("\n#### 综合研判摘录\n")
+                parts.append(synthesis)
+                parts.append("\n")
+
     parts.append(
         "\n## 要求\n"
         "1. 对每只研究标的给出明确建议：强买入/买入/持有/减持/卖出/回避\n"
         "2. 建议仓位比例（占总资金百分比）\n"
         "3. 入场/出场价位建议\n"
         "4. 风险提示与止损位\n"
-        "5. 综合考虑持仓集中度和风险敞口\n"
+        "5. 必须综合考虑持仓集中度和风险敞口\n"
         "6. 是否与当前持仓冲突\n"
+        "7. 若证据不足，请明确说明还缺什么，不要脑补\n"
     )
     return "\n".join(parts)
 
@@ -196,6 +259,11 @@ def _build_synthesis_prompt(
 
     parts.append("\n## 当前持仓\n")
     parts.append(f"```yaml\n{bundle.portfolio_text}```\n")
+
+    parts.append("\n## 组合风控约束\n")
+    parts.append(
+        f"```yaml\n{yaml.dump(bundle.portfolio_guardrails, allow_unicode=True, sort_keys=False)}```\n"
+    )
 
     for r in raw_results:
         if r.success:

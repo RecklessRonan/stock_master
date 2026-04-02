@@ -33,6 +33,9 @@ def create_review_template(
 
     filepath = REVIEWS_DIR / filename
 
+    if filepath.exists():
+        return filepath
+
     lines = [
         f"# {title}\n",
         f"> 日期：{today}",

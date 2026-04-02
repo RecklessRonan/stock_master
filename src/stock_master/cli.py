@@ -5,7 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+import re
 import typer
+import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -15,6 +17,73 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+
+RESEARCH_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _load_analysis_payload(code: str) -> dict:
+    from stock_master.data.cache import DataCache
+    from stock_master.data.fetcher import (
+        fetch_daily_kline,
+        fetch_financial_summary,
+        fetch_news,
+        fetch_stock_info,
+        fetch_valuation,
+        fetch_valuation_history,
+    )
+    from stock_master.data.indicators import add_all_indicators
+
+    cache = DataCache()
+
+    info = cache.get_info(code)
+    if info is None:
+        info = fetch_stock_info(code)
+        if "error" not in info:
+            cache.set_info(code, info)
+
+    kline = cache.get_kline(code)
+    if kline is None:
+        kline = fetch_daily_kline(code)
+        if not kline.empty:
+            cache.set_kline(code, kline)
+    if not kline.empty:
+        kline = add_all_indicators(kline)
+
+    valuation = cache.get_valuation(code)
+    if valuation is None:
+        valuation = fetch_valuation(code)
+        if valuation:
+            cache.set_valuation(code, valuation)
+
+    valuation_history = cache.get_dataset(code, "valuation_history")
+    if valuation_history is None:
+        valuation_history = fetch_valuation_history(code)
+        if valuation_history is not None and not valuation_history.empty:
+            cache.set_dataset(code, "valuation_history", valuation_history)
+
+    financial = fetch_financial_summary(code)
+    news = fetch_news(code)
+    return {
+        "info": info,
+        "kline": kline,
+        "valuation": valuation,
+        "valuation_history": valuation_history,
+        "financial": financial,
+        "news": news,
+    }
+
+
+def _display_factor_value(result, factor_name: str) -> tuple[str, str]:
+    factor = result.factors.get(factor_name)
+    if factor is not None and factor.status == "missing":
+        return "N/A", "▒" * 10
+    value = result.to_dict()[factor_name]
+    bar = "█" * int(value / 10) + "░" * (10 - int(value / 10))
+    return f"{value:.1f}", bar
+
+
+def _is_research_date_dir_name(name: str) -> bool:
+    return bool(RESEARCH_DATE_PATTERN.match(name))
 
 
 @app.command()
@@ -28,54 +97,55 @@ def data(
     output_dir = Path(output) if output else None
     path = build_context(code, output_dir=output_dir)
     console.print(f"\n[bold]上下文文件：[/] {path}")
-    console.print("[dim]接下来可在 Cursor 中 @ 引用 context.md 与 prompts/ 模板开始调研。[/]")
+    console.print(f"[bold]Dossier 文件：[/] {path.parent / 'dossier.yaml'}")
+    console.print("[dim]接下来可在 Cursor 中 @ 引用 context.md、dossier.yaml 与 prompts/ 模板开始调研。[/]")
+
+
+@app.command()
+def dossier(
+    code: str = typer.Argument(..., help="股票代码，如 002273"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="指定输出目录"),
+) -> None:
+    """生成结构化个股 dossier."""
+    from stock_master.pipeline.context_builder import build_context
+
+    output_dir = Path(output) if output else None
+    context_path = build_context(code, output_dir=output_dir)
+    dossier_path = context_path.parent / "dossier.yaml"
+    console.print(f"\n[bold]上下文文件：[/] {context_path}")
+    console.print(f"[bold]Dossier 文件：[/] {dossier_path}")
+    console.print("[dim]建议优先阅读 dossier.yaml 里的新手行动建议与证据覆盖度。[/]")
 
 
 @app.command()
 def score(
     code: str = typer.Argument(..., help="股票代码"),
 ) -> None:
-    """查看股票的五维量化评分."""
+    """查看股票的升级版多因子评分."""
     from stock_master.analysis.quantitative import compute_score
-    from stock_master.data.cache import DataCache
-    from stock_master.data.fetcher import fetch_daily_kline, fetch_stock_info, fetch_valuation
-    from stock_master.data.indicators import add_all_indicators
-
-    cache = DataCache()
-
-    info = cache.get_info(code)
-    if info is None:
-        info = fetch_stock_info(code)
-        if "error" not in info:
-            cache.set_info(code, info)
+    payload = _load_analysis_payload(code)
+    info = payload["info"]
     stock_name = info.get("股票简称", info.get("名称", code))
+    result = compute_score(
+        payload["kline"],
+        payload["valuation"],
+        financial=payload["financial"],
+        valuation_history=payload["valuation_history"],
+        news=payload["news"],
+    )
 
-    kline = cache.get_kline(code)
-    if kline is None:
-        console.print("[dim]正在拉取 K 线数据...[/]")
-        kline = fetch_daily_kline(code)
-        if not kline.empty:
-            cache.set_kline(code, kline)
-            kline = add_all_indicators(kline)
-
-    valuation = cache.get_valuation(code)
-    if valuation is None:
-        console.print("[dim]正在拉取估值数据...[/]")
-        valuation = fetch_valuation(code)
-        if valuation:
-            cache.set_valuation(code, valuation)
-
-    result = compute_score(kline, valuation)
-
-    table = Table(title=f"{stock_name} ({code}) 五维量化评分")
+    table = Table(title=f"{stock_name} ({code}) 多因子评分")
     table.add_column("维度", style="cyan")
     table.add_column("评分", justify="right", style="bold")
     table.add_column("图示", style="green")
 
     for dim, val in result.to_dict().items():
-        bar = "█" * int(val / 10) + "░" * (10 - int(val / 10))
-        style = "bold red" if dim == "综合" else ""
-        table.add_row(dim, f"{val:.1f}", bar, style=style)
+        display_value, bar = _display_factor_value(result, dim) if dim in result.factors else (
+            f"{val:.1f}",
+            "█" * int(val / 10) + "░" * (10 - int(val / 10)),
+        )
+        style = "bold red" if dim in {"综合", "可信度"} else ""
+        table.add_row(dim, display_value, bar, style=style)
 
     console.print(table)
 
@@ -84,55 +154,45 @@ def score(
 def compare(
     codes: list[str] = typer.Argument(..., help="要对比的股票代码列表"),
 ) -> None:
-    """多股对比评分."""
+    """多股对比升级版因子评分."""
     from stock_master.analysis.quantitative import compute_score
-    from stock_master.data.cache import DataCache
-    from stock_master.data.fetcher import fetch_daily_kline, fetch_stock_info, fetch_valuation
-    from stock_master.data.indicators import add_all_indicators
-
-    cache = DataCache()
 
     table = Table(title="多股对比")
     table.add_column("股票", style="cyan")
-    table.add_column("成长性", justify="right")
-    table.add_column("盈利能力", justify="right")
-    table.add_column("安全性", justify="right")
+    table.add_column("质量", justify="right")
     table.add_column("估值", justify="right")
-    table.add_column("动量", justify="right")
+    table.add_column("趋势", justify="right")
+    table.add_column("风险", justify="right")
+    table.add_column("催化剂", justify="right")
     table.add_column("综合", justify="right", style="bold")
+    table.add_column("可信度", justify="right")
 
     for code in codes:
-        info = cache.get_info(code)
-        if info is None:
-            info = fetch_stock_info(code)
-            if "error" not in info:
-                cache.set_info(code, info)
+        payload = _load_analysis_payload(code)
+        info = payload["info"]
         name = info.get("股票简称", info.get("名称", code))
-
-        kline = cache.get_kline(code)
-        if kline is None:
-            console.print(f"[dim]拉取 {code} 数据...[/]")
-            kline = fetch_daily_kline(code)
-            if not kline.empty:
-                cache.set_kline(code, kline)
-                kline = add_all_indicators(kline)
-
-        valuation = cache.get_valuation(code)
-        if valuation is None:
-            valuation = fetch_valuation(code)
-            if valuation:
-                cache.set_valuation(code, valuation)
-
-        s = compute_score(kline, valuation)
+        s = compute_score(
+            payload["kline"],
+            payload["valuation"],
+            financial=payload["financial"],
+            valuation_history=payload["valuation_history"],
+            news=payload["news"],
+        )
         d = s.to_dict()
+        quality_value, _ = _display_factor_value(s, "质量")
+        value_value, _ = _display_factor_value(s, "估值")
+        trend_value, _ = _display_factor_value(s, "趋势")
+        risk_value, _ = _display_factor_value(s, "风险")
+        catalyst_value, _ = _display_factor_value(s, "催化剂")
         table.add_row(
             f"{name}\n({code})",
-            f"{d['成长性']:.1f}",
-            f"{d['盈利能力']:.1f}",
-            f"{d['安全性']:.1f}",
-            f"{d['估值']:.1f}",
-            f"{d['动量']:.1f}",
+            quality_value,
+            value_value,
+            trend_value,
+            risk_value,
+            catalyst_value,
             f"{d['综合']:.1f}",
+            f"{d['可信度']:.1f}",
         )
 
     console.print(table)
@@ -233,6 +293,178 @@ def portfolio() -> None:
         )
 
     console.print(table)
+
+
+@app.command()
+def check_buy(
+    code: str = typer.Argument(..., help="候选股票代码"),
+    position_pct: float = typer.Option(..., "--position-pct", help="计划仓位百分比"),
+) -> None:
+    """买入前检查：结合组合风控和 dossier 建议判断是否值得出手."""
+    from stock_master.pipeline.context_builder import build_context
+    from stock_master.portfolio.guardrails import evaluate_buy_candidate
+    from stock_master.portfolio.trade_log import load_portfolio
+
+    context_path = build_context(code)
+    dossier_path = context_path.parent / "dossier.yaml"
+    dossier = {}
+    if dossier_path.exists():
+        dossier = yaml.safe_load(dossier_path.read_text(encoding="utf-8")) or {}
+
+    result = evaluate_buy_candidate(
+        load_portfolio(),
+        {
+            "code": code,
+            "name": dossier.get("stock_name", code),
+            "planned_position_pct": position_pct,
+        },
+    )
+    rookie_action = dossier.get("rookie_action", {})
+    recommended_max = rookie_action.get("max_position_pct", 0.0)
+
+    console.print(f"[bold]买前检查：{code}[/]")
+    console.print(f"- 风控结论：{result['verdict']}")
+    if rookie_action:
+        console.print(f"- Dossier 结论：{rookie_action.get('verdict', '观察')}")
+        console.print(f"- 建议单票上限：{recommended_max:.1f}%")
+    if recommended_max and position_pct > recommended_max:
+        console.print(f"- [yellow]计划仓位高于 dossier 建议上限：{position_pct:.1f}% > {recommended_max:.1f}%[/]")
+    if result["warnings"]:
+        console.print("- 风险提示：")
+        for warning in result["warnings"]:
+            console.print(f"  - {warning}")
+    else:
+        console.print("- 当前未发现明显组合风控冲突。")
+
+
+@app.command()
+def watchlist(
+    action: str = typer.Option("list", "--action", help="list/add/remove"),
+    code: str = typer.Option("", "--code", help="股票代码"),
+    bucket: str = typer.Option("ready", "--bucket", help="ready/wait_price/avoid"),
+    target_price: Optional[float] = typer.Option(None, "--target-price", help="目标观察价"),
+    thesis: str = typer.Option("", "--thesis", help="观察逻辑"),
+) -> None:
+    """管理观察清单，并生成简易提醒."""
+    from stock_master.data.fetcher import fetch_daily_kline, fetch_stock_info
+    from stock_master.portfolio.trade_log import load_watchlist, save_watchlist
+    from stock_master.portfolio.watchlist import generate_watchlist_alerts, upsert_watchlist_item
+
+    data = load_watchlist()
+
+    if action == "add":
+        if not code:
+            console.print("[bold red]添加观察清单时必须提供 --code[/]")
+            raise typer.Exit(1)
+        info = fetch_stock_info(code)
+        stock_name = info.get("股票简称", info.get("名称", code))
+        updated = upsert_watchlist_item(
+            data,
+            code=code,
+            name=stock_name,
+            bucket=bucket,
+            target_price=target_price,
+            thesis=thesis,
+        )
+        save_watchlist(updated)
+        console.print(f"[bold green]已加入观察清单：{stock_name} ({code})[/]")
+        return
+
+    if action == "remove":
+        data["stocks"] = [item for item in data.get("stocks", []) if item.get("code") != code]
+        save_watchlist(data)
+        console.print(f"[bold green]已移除观察清单：{code}[/]")
+        return
+
+    stocks = data.get("stocks", [])
+    if not stocks:
+        console.print("[dim]观察清单为空。可用 `sm watchlist --action add --code 002273` 添加。[/]")
+        return
+
+    dossiers = {}
+    market_prices = {}
+    for item in stocks:
+        stock_code = item.get("code", "")
+        research_root = Path("research") / stock_code
+        if research_root.exists():
+            date_dirs = sorted(
+                [
+                    d
+                    for d in research_root.iterdir()
+                    if d.is_dir() and _is_research_date_dir_name(d.name)
+                ],
+                reverse=True,
+            )
+            for date_dir in date_dirs:
+                dossier_path = date_dir / "dossier.yaml"
+                if dossier_path.exists():
+                    dossiers[stock_code] = yaml.safe_load(dossier_path.read_text(encoding="utf-8")) or {}
+                    break
+        kline = fetch_daily_kline(stock_code)
+        if not kline.empty:
+            market_prices[stock_code] = float(kline["收盘"].iloc[-1])
+
+    alerts = generate_watchlist_alerts(data, dossiers=dossiers, market_prices=market_prices)
+
+    table = Table(title=f"观察清单（更新于 {data.get('updated_at', 'N/A')}）")
+    table.add_column("股票", style="cyan")
+    table.add_column("分组")
+    table.add_column("目标价", justify="right")
+    table.add_column("现价", justify="right")
+    table.add_column("观察逻辑", style="dim")
+    for item in stocks:
+        current = market_prices.get(item.get("code", ""))
+        table.add_row(
+            f"{item.get('name', '')}\n({item.get('code', '')})",
+            item.get("bucket", ""),
+            f"{item.get('target_price', '') or '-'}",
+            f"{current:.2f}" if current is not None else "-",
+            item.get("thesis", ""),
+        )
+    console.print(table)
+    if alerts:
+        console.print("\n[bold]提醒：[/]")
+        for alert in alerts:
+            console.print(f"- {alert['message']}")
+
+
+@app.command("weekly-review")
+def weekly_review() -> None:
+    """生成包含行为偏差提示的周复盘模板."""
+    from stock_master.portfolio.learning import build_learning_report
+    from stock_master.portfolio.reviewer import create_review_template
+    from stock_master.portfolio.trade_log import list_trades
+
+    reviews_dir = Path("journal/reviews")
+    existing_reviews = [{"path": str(p)} for p in reviews_dir.glob("*.md")] if reviews_dir.exists() else []
+    report = build_learning_report(list_trades(), existing_reviews)
+    path = create_review_template(code="", review_type="weekly")
+
+    extra_lines = [
+        "## 行为偏差提示",
+        "",
+    ]
+    if report["bias_flags"]:
+        extra_lines.extend(f"- {item}" for item in report["bias_flags"])
+    else:
+        extra_lines.append("- 本周未发现明显行为偏差。")
+    extra_lines.extend([
+        "",
+        "## 下周执行清单",
+        "",
+    ])
+    extra_lines.extend(f"- {item}" for item in report["recommendations"])
+    extra_block = "\n".join(extra_lines) + "\n"
+    current = path.read_text(encoding="utf-8")
+    marker = "## 行为偏差提示"
+    if marker in current:
+        current = current.split(marker, 1)[0].rstrip() + "\n\n" + extra_block
+        path.write_text(current, encoding="utf-8")
+    else:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write("\n" + extra_block)
+
+    console.print(f"[bold green]周复盘模板已创建：{path}[/]")
 
 
 @app.command()
@@ -537,7 +769,9 @@ def research(
     console.print(f"\n[bold green]调研目录已准备就绪：{research_dir}[/]\n")
     console.print("[bold]文件结构：[/]")
     console.print(f"  📄 {context_path.name}     — 数据上下文包")
+    console.print("  📄 dossier.yaml    — 结构化事实包与新手行动建议")
     console.print(f"  📁 agents/          — 各角色调研报告待填入")
+    console.print("  📄 stock-report.md — 一页式结论页（8 个关键问题）")
     console.print(f"  📄 synthesis.md     — 综合研判（待生成）")
     console.print(f"  📄 decision.md      — 决策模板（待你填写）")
 
@@ -546,7 +780,7 @@ def research(
         console.print(f"  • {d}")
 
     console.print("\n[bold]下一步：[/]")
-    console.print("  1. 在 Cursor 中 @ 引用 context.md + prompts/research/ 下的模板")
+    console.print("  1. 在 Cursor 中 @ 引用 context.md + dossier.yaml + prompts/research/ 下的模板")
     console.print("  2. 分角色产出报告，保存到 agents/ 目录")
     console.print("  3. 用 prompts/synthesis/ 模板生成综合研判")
     console.print("  4. 填写 decision.md 完成决策")

@@ -1,6 +1,6 @@
 # Stock Master 股票大师
 
-本地优先的个人股票投资决策系统。
+本地优先的个人股票投资决策与学习系统，面向“稳健增值”的股票小白。
 
 ## 设计理念
 
@@ -15,14 +15,23 @@
 # 安装（推荐用 uv）
 uv pip install -e .
 
-# 拉取股票数据并生成研究上下文
+# 拉取股票数据并生成研究上下文 + dossier
 sm data 002273
 
-# 五维量化评分
+# 结构化 dossier（含证据覆盖度与新手行动建议）
+sm dossier 002273
+
+# 多因子评分
 sm score 002273
 
 # 多股对比
 sm compare 002273 300346 603501
+
+# 买入前检查
+sm check-buy 002273 --position-pct 8
+
+# 观察清单
+sm watchlist --action add --code 002273 --bucket wait_price --target-price 18.5
 
 # 导入每日持仓截图
 sm snapshot ~/Desktop/持仓.png
@@ -38,15 +47,19 @@ sm suggest --no-refresh
 
 # 只分析指定股票
 sm suggest -c 002273 -c 09988
+
+# 生成带行为偏差提示的周复盘
+sm weekly-review
 ```
 
 ## 工作流
 
-1. `sm data <code>` — 拉数据、生成统一上下文包 `context.md`
-2. 在 Cursor 中用角色模板做多视角调研，产出存入 `research/`
-3. 强模型综合生成共识/分歧矩阵与投资论点
-4. 人工确认决策：仓位、触发条件、失效条件、复盘日期
-5. 交易后写入 `journal/`，复盘时回链调研
+1. `sm dossier <code>` — 生成 `context.md + dossier.yaml`，先看证据是否够，再决定要不要研究
+2. `sm score <code>` / `sm compare ...` — 用质量 / 估值 / 趋势 / 风险 / 催化剂查看排序与可信度
+3. 在 Cursor 中用角色模板做多视角调研，产出存入 `research/`
+4. `sm suggest` — 把 context、dossier、agents、synthesis 和组合风控一起送入模型综合
+5. `sm check-buy <code>` — 下单前先检查仓位、集中度和 dossier 建议是否冲突
+6. `sm trade` / `sm weekly-review` — 交易留痕、复盘偏差、逐步形成个人投资规则
 
 ## 目录结构
 
@@ -54,12 +67,14 @@ sm suggest -c 002273 -c 09988
 src/stock_master/   — Python 核心引擎（数据、分析、编排、持仓）
 prompts/            — AI 调研角色模板
 research/           — 调研产物（按股票/日期）
+  dossier.yaml      — 结构化事实包（每次研究目录下）
   _suggest/         — 组合级多模型投资建议（sm suggest 产出）
 journal/            — 交易记录与复盘
   trades/           — 单笔交易 YAML
   entries/          — 交易叙事日志
   reviews/          — 复盘记录
   snapshots/        — 每日持仓截图（按日期命名）
+  watchlist.yaml    — 观察清单与目标价
 strategies/         — 策略模板与仓位纪律
 storage/            — SQLite 缓存与本地数据库
 artifacts/          — 图表、截图等导出文件

@@ -2,7 +2,7 @@
 
 ## 系统概述
 
-Stock Master 是一个本地优先的个人股票投资决策系统，采用「Python 核心引擎 + Cursor 工作台 + 文件/数据库双存储」的混合架构。
+Stock Master 是一个本地优先的个人股票投资决策与学习系统，采用「Python 核心引擎 + Cursor 工作台 + 文件/数据库双存储」的混合架构。
 
 ## 核心原则
 
@@ -16,9 +16,9 @@ Stock Master 是一个本地优先的个人股票投资决策系统，采用「P
 ```
 src/stock_master/
 ├── data/           # 数据采集与缓存（AkShare + SQLite）
-├── analysis/       # 量化评分与辅助分析
-├── pipeline/       # 研究编排与上下文构建
-├── portfolio/      # 交易记录、持仓与复盘
+├── analysis/       # 多因子评分与报告生成
+├── pipeline/       # dossier、研究编排与 suggest 闭环
+├── portfolio/      # 交易记录、组合风控、观察清单与学习报告
 └── models/         # 核心领域对象（Pydantic）
 ```
 
@@ -46,28 +46,28 @@ Cursor **不负责**：
 
 ## 分阶段路线
 
-### Phase 1（当前）：单股研究与决策闭环 MVP
-- `sm data` / `sm score` / `sm research`
-- 多角色 Prompt 模板 + Cursor 交互
-- decision.md 结构化决策
+### Phase 1（当前）：单股研究与 dossier 闭环
+- `sm data` / `sm dossier` / `sm score` / `sm research`
+- `context.md + dossier.yaml + stock-report.md` 三层研究产物
+- 多角色 Prompt 模板 + Cursor 交互 + decision.md 结构化决策
 
-### Phase 2（当前）：决策与交易日志
-- `sm trade` / `sm portfolio` / `sm review`
-- YAML 交易记录 + Markdown 叙事日志
-- 研究 → 决策 → 交易 → 复盘 追溯链
+### Phase 2（当前）：决策、组合与学习闭环
+- `sm trade` / `sm portfolio` / `sm check-buy` / `sm review` / `sm weekly-review`
+- YAML 交易记录 + Markdown 叙事日志 + 行为偏差提示
+- 研究 → 决策 → 交易 → 复盘 → 学习 追溯链
 
 ### Phase 2.5（当前）：组合级多模型建议
-- `sm suggest` — 自动刷新已研究股票上下文，并行调用 GPT-5.4 / Opus 4.6 / Gemini 3.1 Pro
+- `sm suggest` — 自动刷新已研究股票上下文，并把 `context.md`、`dossier.yaml`、`agents/*.md`、`synthesis.md` 与组合风控一起送入模型
 - 三模型独立建议 + GPT-5.4 最终综合报告
 - 产物落在 `research/_suggest/{date}/`，不自动改写交易记录或 decision.md
 - 继续遵守"AI 给建议、人类拍板"原则
 
-### Phase 3（未来）：组合与风险视图
+### Phase 3（进行中）：组合与风险视图
 - 持仓聚合与风险暴露计算
-- 观察清单与提醒
+- 观察清单与目标价提醒
 - 简易 Web 仪表盘（apps/web + apps/api）
 
 ### Phase 4（未来）：自动化扩展
-- ModelProvider 多模型自动调度
+- ModelProvider 与 DataProvider 多源自动调度（free / paid / search）
 - Paper Trading 与模拟盘
 - 券商适配器（默认关闭）

@@ -292,6 +292,13 @@ def fetch_valuation(code: str) -> dict:
     return _fetch_valuation_a(code)
 
 
+def fetch_valuation_history(code: str) -> pd.DataFrame:
+    """获取估值历史序列，用于计算历史分位."""
+    if is_hk_stock(code):
+        return _fetch_valuation_history_hk(code)
+    return _fetch_valuation_history_a(code)
+
+
 def _fetch_valuation_a(code: str) -> dict:
     try:
         with _bypass_proxy():
@@ -310,6 +317,21 @@ def _fetch_valuation_a(code: str) -> dict:
         }
     except Exception:
         return {}
+
+
+def _fetch_valuation_history_a(code: str) -> pd.DataFrame:
+    try:
+        with _bypass_proxy():
+            df = ak.stock_a_indicator_lg(symbol=code)
+        if df.empty:
+            return pd.DataFrame()
+        keep = [col for col in ("trade_date", "pe", "pe_ttm", "pb", "ps", "ps_ttm") if col in df.columns]
+        result = df[keep].copy()
+        if "trade_date" in result.columns:
+            result.rename(columns={"trade_date": "date"}, inplace=True)
+        return result.tail(756).reset_index(drop=True)
+    except Exception:
+        return pd.DataFrame()
 
 
 def _fetch_valuation_hk(code: str) -> dict:
@@ -334,6 +356,79 @@ def _fetch_valuation_hk(code: str) -> dict:
         except Exception:
             continue
     return result
+
+
+def _fetch_valuation_history_hk(code: str) -> pd.DataFrame:
+    frames = []
+    indicators = {
+        "市盈率(TTM)": "pe_ttm",
+        "市盈率(静)": "pe",
+        "市净率": "pb",
+    }
+    for cn_name, key in indicators.items():
+        try:
+            with _bypass_proxy():
+                df = ak.stock_hk_valuation_baidu(
+                    symbol=code,
+                    indicator=cn_name,
+                    period="近一年",
+                )
+            if df.empty or "date" not in df.columns or "value" not in df.columns:
+                continue
+            subset = df[["date", "value"]].copy()
+            subset.rename(columns={"value": key}, inplace=True)
+            frames.append(subset)
+        except Exception:
+            continue
+    if not frames:
+        return pd.DataFrame()
+
+    result = frames[0]
+    for frame in frames[1:]:
+        result = result.merge(frame, on="date", how="outer")
+    return result.sort_values("date").reset_index(drop=True)
+
+
+def fetch_macro_snapshot(code: str = "", info: Optional[dict] = None) -> dict:
+    """获取简要宏观快照.
+
+    当前实现保持保守：若宏观接口不可用则返回空字典，
+    为付费数据源与联网搜索预留统一入口。
+    """
+    try:
+        with _bypass_proxy():
+            cpi = ak.macro_china_cpi_yearly()
+            pmi = ak.macro_china_pmi_yearly()
+        headline_parts = []
+        if not cpi.empty:
+            latest_cpi = cpi.iloc[-1].to_dict()
+            headline_parts.append(f"CPI {latest_cpi}")
+        if not pmi.empty:
+            latest_pmi = pmi.iloc[-1].to_dict()
+            headline_parts.append(f"PMI {latest_pmi}")
+        if headline_parts:
+            return {
+                "market_regime": "宏观跟踪中",
+                "policy_bias": "待人工确认",
+                "liquidity": "待人工确认",
+                "headline": "；".join(headline_parts),
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def fetch_peer_benchmark(code: str, info: Optional[dict] = None, limit: int = 5) -> list[dict]:
+    """获取同行估值对比.
+
+    默认返回空结果；后续可由付费数据源或行业接口补齐。
+    """
+    industry = ""
+    if info:
+        industry = str(info.get("行业", "")).strip()
+    if not industry:
+        return []
+    return [{"code": code, "name": info.get("股票简称", code), "industry": industry}][:limit]
 
 
 # ---------------------------------------------------------------------------

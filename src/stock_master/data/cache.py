@@ -48,6 +48,13 @@ class DataCache:
                 data TEXT NOT NULL,
                 fetched_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS dataset_cache (
+                code TEXT NOT NULL,
+                dataset_key TEXT NOT NULL,
+                data TEXT NOT NULL,
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY (code, dataset_key)
+            );
         """)
         self.conn.commit()
 
@@ -104,6 +111,46 @@ class DataCache:
         self.conn.execute(
             "INSERT OR REPLACE INTO valuation_cache (code, data, fetched_at) VALUES (?, ?, ?)",
             (code, json.dumps(val, ensure_ascii=False), now),
+        )
+        self.conn.commit()
+
+    def get_dataset(
+        self,
+        code: str,
+        dataset_key: str,
+        max_age_hours: int = 24,
+    ) -> Optional[pd.DataFrame | dict | list | str]:
+        """通用数据集缓存读取."""
+        cutoff = (datetime.now() - timedelta(hours=max_age_hours)).isoformat()
+        row = self.conn.execute(
+            """
+            SELECT data FROM dataset_cache
+            WHERE code = ? AND dataset_key = ? AND fetched_at > ?
+            """,
+            (code, dataset_key, cutoff),
+        ).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row[0])
+        kind = payload.get("kind")
+        value = payload.get("value")
+        if kind == "dataframe":
+            return pd.read_json(StringIO(value), orient="records")
+        return value
+
+    def set_dataset(self, code: str, dataset_key: str, value: pd.DataFrame | dict | list | str) -> None:
+        """通用数据集缓存写入."""
+        now = datetime.now().isoformat()
+        if isinstance(value, pd.DataFrame):
+            payload = {"kind": "dataframe", "value": value.to_json(orient="records", force_ascii=False)}
+        else:
+            payload = {"kind": "json", "value": value}
+        self.conn.execute(
+            """
+            INSERT OR REPLACE INTO dataset_cache (code, dataset_key, data, fetched_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (code, dataset_key, json.dumps(payload, ensure_ascii=False), now),
         )
         self.conn.commit()
 

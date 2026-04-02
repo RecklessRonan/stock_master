@@ -1,10 +1,10 @@
-"""研究流程领域对象."""
+"""研究流程与结构化 dossier 领域对象."""
 
 from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +29,42 @@ class EvidenceItem(BaseModel):
     fetched_at: datetime = Field(default_factory=datetime.now)
     reliability: float = Field(default=0.8, ge=0.0, le=1.0)
     url: Optional[str] = None
+
+
+class EvidenceCoverage(BaseModel):
+    """证据覆盖度摘要."""
+
+    available_sections: list[str] = Field(default_factory=list)
+    missing_sections: list[str] = Field(default_factory=list)
+    stale_sections: list[str] = Field(default_factory=list)
+    coverage_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class RookieAction(BaseModel):
+    """面向新手的行动建议."""
+
+    verdict: str = "观察"
+    max_position_pct: float = Field(default=0.0, ge=0.0, le=100.0)
+    preferred_holding_period: str = ""
+    checklist: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class StockDossier(BaseModel):
+    """个股研究事实包."""
+
+    code: str
+    stock_name: str = ""
+    market: str = ""
+    generated_at: datetime = Field(default_factory=datetime.now)
+    factors: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    coverage: EvidenceCoverage = Field(default_factory=EvidenceCoverage)
+    evidence: list[EvidenceItem] = Field(default_factory=list)
+    data_sources: dict[str, list[str]] = Field(default_factory=dict)
+    macro_snapshot: dict[str, Any] = Field(default_factory=dict)
+    peer_benchmark: list[dict[str, Any]] = Field(default_factory=list)
+    rookie_action: RookieAction = Field(default_factory=RookieAction)
+    missing_items: list[str] = Field(default_factory=list)
 
 
 class ResearchMemo(BaseModel):

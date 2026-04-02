@@ -7,11 +7,16 @@
 ```
 prompts/
 ├── research/           # 分角色调研模板
+│   ├── 00-macro-context.md  # 宏观与政策背景
 │   ├── 01-fundamental.md    # 基本面分析
 │   ├── 02-financial.md      # 财务深度分析
 │   ├── 03-risk.md           # 风险评估（空头视角）
 │   ├── 04-technical.md      # 技术面分析
-│   └── 05-industry.md       # 行业与竞争
+│   ├── 05-industry.md       # 行业与竞争
+│   ├── 06-capital-flow.md   # 资金面与筹码
+│   ├── 07-catalyst.md       # 催化剂与事件日历
+│   ├── 08-governance.md     # 治理与管理层
+│   └── 09-valuation-deep.md # 深度估值
 ├── synthesis/          # 综合研判模板
 │   ├── consensus-matrix.md  # 共识/分歧矩阵
 │   └── investment-thesis.md # 投资论点生成
@@ -26,8 +31,8 @@ prompts/
 
 模板中的 `{{变量}}` 在使用时替换为实际数据。在 Cursor 中使用时：
 
-1. 运行 `sm data <code>` 生成上下文包
-2. 在 Cursor Chat 中 `@` 引用对应模板和 context.md
+1. 运行 `sm dossier <code>` 生成 `context.md` 与 `dossier.yaml`
+2. 在 Cursor Chat 中 `@` 引用对应模板、`context.md` 和 `dossier.yaml`
 3. 收集各角色输出到 `research/{code}/{date}/agents/`
 
 ### sm suggest 自动建议

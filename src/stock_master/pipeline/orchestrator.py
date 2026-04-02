@@ -58,6 +58,45 @@ DECISION_TEMPLATE = """\
 
 """
 
+STOCK_REPORT_TEMPLATE = """\
+# 一页式 Stock Report：{{stock_name}} ({{stock_code}})
+
+> 日期：{{date}}
+> 研究引用：{{research_dir}}
+
+## 1. 公司做什么
+
+-
+
+## 2. 为什么可能涨
+
+-
+
+## 3. 为什么可能跌
+
+-
+
+## 4. 当前贵不贵
+
+-
+
+## 5. 近期催化剂
+
+-
+
+## 6. 最大风险
+
+-
+
+## 7. 买入前还缺什么证据
+
+-
+
+## 8. 适合什么仓位和周期
+
+-
+"""
+
 
 def prepare_research_dir(
     code: str,
@@ -89,6 +128,19 @@ def prepare_research_dir(
             f"# 综合研判：{stock_name or code} ({code})\\n\\n"
             f"> 日期：{research_date}\\n\\n"
             "<!-- 使用 prompts/synthesis/consensus-matrix.md 模板生成 -->\\n",
+            encoding="utf-8",
+        )
+
+    stock_report_path = research_dir / "stock-report.md"
+    if not stock_report_path.exists():
+        tmpl = Template(STOCK_REPORT_TEMPLATE)
+        stock_report_path.write_text(
+            tmpl.render(
+                stock_name=stock_name or code,
+                stock_code=code,
+                date=research_date,
+                research_dir=str(research_dir),
+            ),
             encoding="utf-8",
         )
 
