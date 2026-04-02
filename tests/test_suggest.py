@@ -137,7 +137,7 @@ class TestBuildInputsBundle:
         assert bundle.dossiers["002273"]["code"] == "002273"
         assert "fundamental" in bundle.research_notes["002273"]["agents"]
         assert "盈利改善" in bundle.research_notes["002273"]["synthesis"]
-        assert bundle.portfolio_guardrails["position_count"] == 1
+        assert bundle.portfolio_guardrails["guardrails"]["position_count"] == 1
 
     def test_model_prompt_includes_guardrails_and_research_digest(self, tmp_path):
         bundle = SuggestBundle(

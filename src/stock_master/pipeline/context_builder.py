@@ -12,7 +12,11 @@ from rich.console import Console
 
 from stock_master.analysis.quantitative import compute_score
 from stock_master.analysis.reporter import (
+    format_announcements,
+    format_capital_flow,
+    format_earnings_forecast,
     format_evidence_coverage,
+    format_factor_details,
     format_financial_summary,
     format_kline_summary,
     format_macro_summary,
@@ -20,7 +24,9 @@ from stock_master.analysis.reporter import (
     format_peer_benchmark,
     format_rookie_action,
     format_score_summary,
+    format_shareholder_changes,
     format_stock_info,
+    format_teaching_segment,
     format_valuation_history_summary,
     format_valuation_summary,
 )
@@ -31,17 +37,22 @@ from stock_master.analysis.technical import (
 )
 from stock_master.data.cache import DataCache
 from stock_master.data.fetcher import (
+    fetch_announcements,
+    fetch_capital_flow,
     fetch_daily_kline,
+    fetch_earnings_forecast,
+    fetch_financial_statements,
     fetch_financial_summary,
     fetch_macro_snapshot,
     fetch_news,
     fetch_peer_benchmark,
+    fetch_shareholder_changes,
     fetch_stock_info,
     fetch_valuation,
     fetch_valuation_history,
 )
 from stock_master.data.indicators import add_all_indicators
-from stock_master.pipeline.dossier import build_stock_dossier
+from stock_master.pipeline.dossier import build_stock_dossier, generate_teaching_segment
 from stock_master.pipeline.providers import summarize_data_provider_catalog
 
 console = Console()
@@ -111,6 +122,26 @@ def build_context(
     console.print(f"[bold blue]拉取 {code} 近期新闻...[/]")
     news = fetch_news(code)
 
+    # --- 资金流向 ---
+    console.print(f"[bold blue]拉取 {code} 资金流向...[/]")
+    capital_flow = fetch_capital_flow(code)
+
+    # --- 股东变化 ---
+    console.print(f"[bold blue]拉取 {code} 股东变化...[/]")
+    shareholder_changes = fetch_shareholder_changes(code)
+
+    # --- 公告 ---
+    console.print(f"[bold blue]拉取 {code} 近期公告...[/]")
+    announcements = fetch_announcements(code)
+
+    # --- 业绩预告 ---
+    console.print(f"[bold blue]拉取 {code} 业绩预告...[/]")
+    earnings_forecast = fetch_earnings_forecast(code)
+
+    # --- 完整三表 ---
+    console.print(f"[bold blue]拉取 {code} 完整财务报表...[/]")
+    financial_statements = fetch_financial_statements(code)
+
     macro = cache.get_dataset(code, "macro_snapshot")
     if macro is None:
         macro = fetch_macro_snapshot(code, info=info)
@@ -134,6 +165,7 @@ def build_context(
         financial=financial,
         valuation_history=valuation_history,
         news=news,
+        peers=peers,
     )
 
     # --- 技术面快照 ---
@@ -153,6 +185,12 @@ def build_context(
         macro=macro,
         peers=peers,
         data_sources=summarize_data_provider_catalog(),
+        capital_flow=capital_flow,
+        shareholder_changes=shareholder_changes,
+        announcements=announcements,
+        earnings_forecast=earnings_forecast,
+        financial_statements=financial_statements,
+        valuation_history=valuation_history,
     )
 
     # --- 组装 context.md ---
@@ -167,10 +205,16 @@ def build_context(
         format_kline_summary(kline),
         _format_tech_snapshot(trend, sr, vol_signal),
         format_financial_summary(financial),
+        format_capital_flow(capital_flow),
+        format_shareholder_changes(shareholder_changes),
+        format_announcements(announcements),
+        format_earnings_forecast(earnings_forecast),
         format_peer_benchmark(peers),
         format_macro_summary(macro),
         format_news_summary(news),
         format_rookie_action(dossier.rookie_action),
+        format_factor_details(score),
+        format_teaching_segment(generate_teaching_segment(score, dossier.coverage)),
     ]
 
     context_path = output_dir / "context.md"

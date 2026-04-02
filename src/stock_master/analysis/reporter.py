@@ -211,3 +211,135 @@ def format_rookie_action(action: RookieAction) -> str:
         lines.append("- 风险提醒：")
         lines.extend(f"  - {item}" for item in action.warnings)
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# 新增格式化函数
+# ---------------------------------------------------------------------------
+
+
+def format_capital_flow(capital_flow: dict) -> str:
+    """格式化资金流向为 Markdown."""
+    if not capital_flow:
+        return "暂无资金流向数据。\n"
+
+    lines = ["### 资金流向\n"]
+    mapping = {
+        "main_net_inflow": "主力净流入",
+        "super_net_inflow": "超大单净流入",
+        "big_net_inflow": "大单净流入",
+        "mid_net_inflow": "中单净流入",
+        "small_net_inflow": "小单净流入",
+    }
+    for key, label in mapping.items():
+        v = capital_flow.get(key)
+        if v is not None:
+            try:
+                lines.append(f"- {label}：{float(v):,.2f} 万")
+            except (TypeError, ValueError):
+                lines.append(f"- {label}：{v}")
+
+    for key, value in capital_flow.items():
+        if key not in mapping:
+            lines.append(f"- {key}：{value}")
+
+    return "\n".join(lines) + "\n"
+
+
+def format_shareholder_changes(changes: list[dict]) -> str:
+    """格式化股东变化为 Markdown 表格."""
+    if not changes:
+        return "暂无股东变化数据。\n"
+
+    lines = ["### 股东变化\n"]
+    headers = ["股东名称", "变动类型", "变动数量(万股)", "日期"]
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("| " + " | ".join("---" for _ in headers) + " |")
+    for item in changes:
+        row = [
+            str(item.get("name", "-")),
+            str(item.get("change_type", "-")),
+            str(item.get("change_amount", "-")),
+            str(item.get("date", "-")),
+        ]
+        lines.append("| " + " | ".join(row) + " |")
+
+    return "\n".join(lines) + "\n"
+
+
+def format_announcements(announcements: list[dict], limit: int = 5) -> str:
+    """格式化公告列表."""
+    if not announcements:
+        return "暂无公告数据。\n"
+
+    lines = ["### 近期公告\n"]
+    for item in announcements[:limit]:
+        title = item.get("title", "无标题")
+        date = item.get("date", "")
+        url = item.get("url", "")
+        if url:
+            lines.append(f"- [{title}]({url})（{date}）")
+        else:
+            lines.append(f"- **{title}**（{date}）")
+
+    return "\n".join(lines) + "\n"
+
+
+def format_earnings_forecast(forecasts: list[dict]) -> str:
+    """格式化业绩预告."""
+    if not forecasts:
+        return "暂无业绩预告数据。\n"
+
+    lines = ["### 业绩预告\n"]
+    for item in forecasts:
+        period = item.get("period", "-")
+        forecast_type = item.get("type", "-")
+        content = item.get("content", "")
+        change = item.get("change_range", "")
+        line = f"- **{period}**：{forecast_type}"
+        if change:
+            line += f"（变动幅度：{change}）"
+        if content:
+            line += f"\n  > {content}"
+        lines.append(line)
+
+    return "\n".join(lines) + "\n"
+
+
+def format_teaching_segment(text: str) -> str:
+    """格式化教学段为带标题的 Markdown."""
+    if not text:
+        return ""
+    return f"### 📖 本次分析要点\n\n{text}\n"
+
+
+def format_factor_details(score: ScoreResult) -> str:
+    """详细因子解释格式化 — 列出每个非 missing 因子的子指标."""
+    lines = ["### 因子详解\n"]
+
+    for name, factor in score.factors.items():
+        if factor.status == "missing":
+            lines.append(f"#### {name}（数据缺失）\n")
+            lines.append(f"- 状态：{factor.status}")
+            lines.append(f"- 说明：{factor.summary}\n")
+            continue
+
+        score_val = factor.numeric_score()
+        lines.append(f"#### {name}（{score_val:.0f}分）\n")
+        lines.append(f"- 覆盖度：{factor.coverage * 100:.0f}%")
+        lines.append(f"- 状态：{factor.status}")
+        lines.append(f"- 小结：{factor.summary}")
+
+        if factor.metrics:
+            lines.append("")
+            lines.append("| 子指标 | 值 |")
+            lines.append("| --- | --- |")
+            for metric_name, metric_val in factor.metrics.items():
+                try:
+                    display = f"{float(metric_val):.2f}"
+                except (TypeError, ValueError):
+                    display = str(metric_val)
+                lines.append(f"| {metric_name} | {display} |")
+        lines.append("")
+
+    return "\n".join(lines) + "\n"

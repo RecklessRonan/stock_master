@@ -16,6 +16,12 @@ class EvidenceType(str, Enum):
     ANNOUNCEMENT = "announcement"
     KLINE_IMAGE = "kline_image"
     ANALYST_REPORT = "analyst_report"
+    CAPITAL_FLOW = "capital_flow"
+    SHAREHOLDER = "shareholder"
+    EARNINGS_FORECAST = "earnings_forecast"
+    FINANCIAL_STATEMENT = "financial_statement"
+    PEER_COMPARISON = "peer_comparison"
+    MACRO = "macro"
     OTHER = "other"
 
 
@@ -50,6 +56,24 @@ class RookieAction(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class EvidencePack(BaseModel):
+    """多源数据证据包 — 标准化证据容器."""
+
+    code: str
+    stock_name: str = ""
+    collected_at: datetime = Field(default_factory=datetime.now)
+    items: list[EvidenceItem] = Field(default_factory=list)
+    capital_flow: dict[str, Any] = Field(default_factory=dict)
+    shareholder_changes: list[dict[str, Any]] = Field(default_factory=list)
+    announcements: list[dict[str, Any]] = Field(default_factory=list)
+    earnings_forecast: list[dict[str, Any]] = Field(default_factory=list)
+    financial_statements: dict[str, Any] = Field(default_factory=dict)
+    valuation_history: dict[str, Any] = Field(default_factory=dict)
+    peer_comparison: list[dict[str, Any]] = Field(default_factory=list)
+    macro_snapshot: dict[str, Any] = Field(default_factory=dict)
+    data_sources: dict[str, list[str]] = Field(default_factory=dict)
+
+
 class StockDossier(BaseModel):
     """个股研究事实包."""
 
@@ -63,6 +87,12 @@ class StockDossier(BaseModel):
     data_sources: dict[str, list[str]] = Field(default_factory=dict)
     macro_snapshot: dict[str, Any] = Field(default_factory=dict)
     peer_benchmark: list[dict[str, Any]] = Field(default_factory=list)
+    capital_flow: dict[str, Any] = Field(default_factory=dict)
+    shareholder_changes: list[dict[str, Any]] = Field(default_factory=list)
+    announcements: list[dict[str, Any]] = Field(default_factory=list)
+    earnings_forecast: list[dict[str, Any]] = Field(default_factory=list)
+    financial_statements: dict[str, Any] = Field(default_factory=dict)
+    evidence_pack: Optional["EvidencePack"] = None
     rookie_action: RookieAction = Field(default_factory=RookieAction)
     missing_items: list[str] = Field(default_factory=list)
 

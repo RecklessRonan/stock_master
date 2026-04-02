@@ -68,6 +68,11 @@ def test_build_context_writes_context_and_dossier(tmp_path: Path):
         patch("stock_master.pipeline.context_builder.fetch_news", return_value=news),
         patch("stock_master.pipeline.context_builder.fetch_macro_snapshot", return_value=macro),
         patch("stock_master.pipeline.context_builder.fetch_peer_benchmark", return_value=peers),
+        patch("stock_master.pipeline.context_builder.fetch_capital_flow", return_value={"main_net_inflow": 1234.5}),
+        patch("stock_master.pipeline.context_builder.fetch_shareholder_changes", return_value=[]),
+        patch("stock_master.pipeline.context_builder.fetch_announcements", return_value=[]),
+        patch("stock_master.pipeline.context_builder.fetch_earnings_forecast", return_value=[]),
+        patch("stock_master.pipeline.context_builder.fetch_financial_statements", return_value={"balance_sheet": None, "income_statement": None, "cash_flow": None}),
     ):
         context_path = build_context(
             "300999",

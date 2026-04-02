@@ -135,3 +135,91 @@ def summarize_data_provider_catalog(env: Optional[dict[str, str]] = None) -> dic
         if provider.enabled:
             summary[provider.kind.value].append(provider.name)
     return summary
+
+
+# ---------------------------------------------------------------------------
+# DataRouter — 数据获取路由
+# ---------------------------------------------------------------------------
+
+
+class DataRouter:
+    """数据获取路由器 — 根据可用数据源选择最佳路径."""
+
+    def __init__(self, env: Optional[dict[str, str]] = None):
+        self.catalog = get_data_provider_catalog(env)
+        self._enabled_paid = [
+            p for p in self.catalog if p.kind == DataProviderKind.PAID and p.enabled
+        ]
+
+    def has_paid_source(self, name: str = "") -> bool:
+        if name:
+            return any(p.name == name and p.enabled for p in self._enabled_paid)
+        return bool(self._enabled_paid)
+
+    def preferred_source(self, data_type: str) -> str:
+        """根据数据类型返回首选数据源名称."""
+        if self._enabled_paid:
+            return self._enabled_paid[0].name
+        return "akshare"
+
+    def fetch_with_fallback(
+        self,
+        data_type: str,
+        free_fn,
+        paid_fn=None,
+        search_fn=None,
+        **kwargs,
+    ):
+        """按优先级尝试获取数据：paid -> free -> search."""
+        if paid_fn and self.has_paid_source():
+            try:
+                result = paid_fn(**kwargs)
+                if result:
+                    return result, "paid"
+            except Exception:
+                pass
+        try:
+            result = free_fn(**kwargs)
+            if result:
+                return result, "free"
+        except Exception:
+            pass
+        if search_fn:
+            try:
+                result = search_fn(**kwargs)
+                if result:
+                    return result, "search"
+            except Exception:
+                pass
+        return None, "none"
+
+
+# ---------------------------------------------------------------------------
+# 数据源摘要与升级建议
+# ---------------------------------------------------------------------------
+
+
+def _recommend_upgrades(router: DataRouter) -> list[str]:
+    """基于当前配置推荐数据源升级."""
+    recs: list[str] = []
+    if not router.has_paid_source():
+        recs.append("建议接入 iFinD 或 Choice 获取更完整的财务和资金流数据")
+    return recs
+
+
+def get_active_sources_summary(env: Optional[dict[str, str]] = None) -> dict:
+    """返回当前活跃数据源的详细摘要."""
+    router = DataRouter(env)
+    return {
+        "free": [
+            p.name for p in router.catalog if p.kind == DataProviderKind.FREE and p.enabled
+        ],
+        "paid": [
+            p.name for p in router.catalog if p.kind == DataProviderKind.PAID and p.enabled
+        ],
+        "search": [
+            p.name for p in router.catalog if p.kind == DataProviderKind.SEARCH and p.enabled
+        ],
+        "has_paid": router.has_paid_source(),
+        "recommended_upgrades": _recommend_upgrades(router),
+    }

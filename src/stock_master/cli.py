@@ -311,13 +311,31 @@ def check_buy(
     if dossier_path.exists():
         dossier = yaml.safe_load(dossier_path.read_text(encoding="utf-8")) or {}
 
+    from stock_master.data.fetcher import fetch_daily_kline
+
+    portfolio_data = load_portfolio()
+    kline_data_dict = None
+    kline = fetch_daily_kline(code)
+    if not kline.empty:
+        recent_high = float(kline["最高"].tail(20).max())
+        current_price = float(kline["收盘"].iloc[-1])
+        pct_20 = (current_price / float(kline["收盘"].iloc[-20]) - 1) * 100 if len(kline) >= 20 else 0.0
+        kline_data_dict = {
+            "recent_high": recent_high,
+            "current_price": current_price,
+            "pct_from_high": (current_price / recent_high * 100) if recent_high > 0 else 0.0,
+            "short_term_gain": pct_20,
+        }
+
     result = evaluate_buy_candidate(
-        load_portfolio(),
+        portfolio_data,
         {
             "code": code,
             "name": dossier.get("stock_name", code),
             "planned_position_pct": position_pct,
         },
+        kline_data=kline_data_dict,
+        dossier=dossier,
     )
     rookie_action = dossier.get("rookie_action", {})
     recommended_max = rookie_action.get("max_position_pct", 0.0)
@@ -874,6 +892,202 @@ def suggest(
     for f in sorted(output_dir.iterdir()):
         console.print(f"  📄 {f.name}")
     console.print("\n[dim]这是候选决策，最终由你人工拍板。[/]")
+
+
+@app.command()
+def alerts(
+    scan: bool = typer.Option(False, "--scan", help="扫描持仓和观察清单生成新提醒"),
+    acknowledge: Optional[int] = typer.Option(None, "--ack", help="确认指定序号的提醒"),
+) -> None:
+    """查看和管理投资提醒."""
+    from stock_master.portfolio.alerts import (
+        acknowledge_alert,
+        format_alerts_summary,
+        load_alerts,
+        scan_all_alerts,
+    )
+    from stock_master.portfolio.trade_log import load_portfolio, load_watchlist
+
+    if acknowledge is not None:
+        acknowledge_alert(acknowledge)
+        console.print(f"[bold green]提醒 #{acknowledge} 已确认。[/]")
+        return
+
+    if scan:
+        from stock_master.data.fetcher import (
+            fetch_capital_flow,
+            fetch_daily_kline,
+            fetch_valuation,
+        )
+        from stock_master.portfolio.alerts import save_alerts
+
+        portfolio_data = load_portfolio()
+        watchlist_data = load_watchlist()
+        market_data: dict = {}
+
+        all_codes = set()
+        for pos in portfolio_data.get("positions", []):
+            all_codes.add(pos.get("code", ""))
+        for stock in watchlist_data.get("stocks", []):
+            all_codes.add(stock.get("code", ""))
+
+        for code in all_codes:
+            if not code:
+                continue
+            console.print(f"[dim]扫描 {code}...[/]")
+            entry: dict = {}
+            kline = fetch_daily_kline(code)
+            if not kline.empty:
+                entry["current_price"] = float(kline["收盘"].iloc[-1])
+            entry["capital_flow"] = fetch_capital_flow(code)
+            entry["valuation"] = fetch_valuation(code)
+            market_data[code] = entry
+
+        new_alerts = scan_all_alerts(
+            portfolio=portfolio_data,
+            watchlist=watchlist_data,
+            market_data=market_data,
+        )
+        if new_alerts:
+            save_alerts(new_alerts)
+            console.print(f"[bold green]发现 {len(new_alerts)} 条新提醒！[/]")
+        else:
+            console.print("[dim]未发现新的异动提醒。[/]")
+
+    existing = load_alerts()
+    if not existing:
+        console.print("[dim]暂无提醒。使用 --scan 扫描新提醒。[/]")
+        return
+
+    table = Table(title="投资提醒")
+    table.add_column("#", style="dim")
+    table.add_column("类型", style="cyan")
+    table.add_column("级别")
+    table.add_column("股票")
+    table.add_column("内容")
+    table.add_column("时间", style="dim")
+
+    for i, alert in enumerate(existing):
+        severity_style = {
+            "critical": "bold red",
+            "warning": "yellow",
+            "info": "dim",
+        }.get(alert.get("severity", "info"), "")
+        table.add_row(
+            str(i),
+            alert.get("type", ""),
+            f"[{severity_style}]{alert.get('severity', '')}[/{severity_style}]",
+            alert.get("code", ""),
+            alert.get("message", ""),
+            alert.get("created_at", "")[:16],
+        )
+    console.print(table)
+
+
+@app.command("paper-trade")
+def paper_trade(
+    action: str = typer.Argument(..., help="操作：buy/sell/status/performance"),
+    code: str = typer.Option("", "--code", "-c", help="股票代码"),
+    price: float = typer.Option(0.0, "--price", "-p", help="价格"),
+    shares: int = typer.Option(0, "--shares", "-s", help="股数"),
+    reason: str = typer.Option("", "--reason", "-r", help="交易理由"),
+) -> None:
+    """模拟盘交易 — 不涉及真实资金."""
+    from stock_master.portfolio.execution import PaperPortfolio
+
+    paper = PaperPortfolio()
+
+    if action == "status":
+        positions = paper.get_positions()
+        if not positions:
+            console.print("[dim]模拟盘暂无持仓。[/]")
+            return
+        table = Table(title="模拟盘持仓")
+        table.add_column("股票", style="cyan")
+        table.add_column("股数", justify="right")
+        table.add_column("成本价", justify="right")
+        for pos in positions:
+            table.add_row(
+                f"{pos.get('name', '')}\n({pos.get('code', '')})",
+                str(pos.get("shares", 0)),
+                f"{pos.get('avg_cost', 0):.2f}",
+            )
+        console.print(table)
+        return
+
+    if action == "performance":
+        perf = paper.get_performance()
+        console.print("[bold]模拟盘业绩[/]")
+        console.print(f"  初始资金：{perf.get('initial_cash', 0):,.2f}")
+        console.print(f"  当前现金：{perf.get('current_cash', 0):,.2f}")
+        console.print(f"  持仓市值：{perf.get('position_value', 0):,.2f}")
+        console.print(f"  总资产：{perf.get('total_assets', 0):,.2f}")
+        console.print(f"  总收益率：{perf.get('total_return_pct', 0):.2f}%")
+        console.print(f"  交易次数：{perf.get('trade_count', 0)}")
+        return
+
+    if not code:
+        console.print("[bold red]请指定 --code[/]")
+        raise typer.Exit(1)
+    if price <= 0 or shares <= 0:
+        console.print("[bold red]请指定有效的 --price 和 --shares[/]")
+        raise typer.Exit(1)
+
+    from stock_master.data.fetcher import fetch_stock_info
+    info = fetch_stock_info(code)
+    stock_name = info.get("股票简称", info.get("名称", code))
+
+    result = paper.execute_trade(
+        code=code, name=stock_name, action=action,
+        price=price, shares=shares, reason=reason,
+    )
+    console.print(f"[bold green]{result.get('message', '操作完成')}[/]")
+
+
+@app.command()
+def profile() -> None:
+    """查看个人交易行为画像和学习建议."""
+    from stock_master.portfolio.learning import build_trader_profile, detect_behavioral_biases
+    from stock_master.portfolio.trade_log import list_trades, load_portfolio
+
+    trades = list_trades()
+    portfolio_data = load_portfolio()
+
+    if not trades:
+        console.print("[dim]暂无交易记录，无法生成画像。先使用 sm trade 记录交易。[/]")
+        return
+
+    profile_data = build_trader_profile(trades, [])
+    biases = detect_behavioral_biases(trades, portfolio_data)
+
+    console.print("[bold]📊 交易行为画像[/]\n")
+    console.print(f"  总交易次数：{profile_data.get('total_trades', 0)}")
+    console.print(f"  胜率：{profile_data.get('win_rate', 0):.1f}%")
+    console.print(f"  平均持有天数：{profile_data.get('avg_holding_days', 0):.0f}")
+
+    if profile_data.get("strengths"):
+        console.print("\n[bold green]  优势：[/]")
+        for s in profile_data["strengths"]:
+            console.print(f"    ✓ {s}")
+
+    if profile_data.get("common_mistakes"):
+        console.print("\n[bold yellow]  常见错误：[/]")
+        for m in profile_data["common_mistakes"]:
+            console.print(f"    ✗ {m}")
+
+    if biases:
+        console.print("\n[bold red]  行为偏差检测：[/]")
+        for b in biases:
+            severity_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(
+                b.get("severity", "low"), "⚪"
+            )
+            console.print(f"    {severity_icon} {b.get('bias_type', '')}: {b.get('description', '')}")
+            console.print(f"      → {b.get('recommendation', '')}")
+
+    if profile_data.get("recommendations"):
+        console.print("\n[bold]  学习建议：[/]")
+        for r in profile_data["recommendations"]:
+            console.print(f"    • {r}")
 
 
 if __name__ == "__main__":

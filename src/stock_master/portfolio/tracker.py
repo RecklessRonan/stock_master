@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from stock_master.portfolio.trade_log import load_portfolio, save_portfolio
 
 
@@ -58,6 +60,30 @@ def update_position(
 
     elif action in ("sell", "reduce"):
         if existing:
+            # 卖出前记录交易日志
+            sell_log = {
+                "sold_at": price,
+                "sell_date": date.today().isoformat(),
+                "sell_reason": notes,
+                "sell_shares": shares,
+            }
+            if existing.get("buy_date"):
+                sell_log["buy_date"] = existing["buy_date"]
+            if existing.get("buy_reason"):
+                sell_log["buy_reason"] = existing["buy_reason"]
+            if existing.get("avg_cost"):
+                sell_log["avg_cost"] = existing["avg_cost"]
+                pnl = round((price - existing["avg_cost"]) * shares, 2)
+                pnl_pct = round((price / existing["avg_cost"] - 1) * 100, 2) if existing["avg_cost"] > 0 else 0.0
+                sell_log["pnl"] = pnl
+                sell_log["pnl_pct"] = pnl_pct
+
+            portfolio.setdefault("sell_log", []).append({
+                "code": code,
+                "name": name,
+                **sell_log,
+            })
+
             existing["shares"] = max(0, existing["shares"] - shares)
             if existing["shares"] == 0:
                 positions.remove(existing)

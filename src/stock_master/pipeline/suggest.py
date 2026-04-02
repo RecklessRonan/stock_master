@@ -19,6 +19,7 @@ from stock_master.pipeline.cursor_agent import (
     run_agent,
 )
 from stock_master.portfolio.guardrails import analyze_portfolio_guardrails
+from stock_master.portfolio.guardrails import comprehensive_portfolio_analysis
 
 console = Console()
 
@@ -142,11 +143,11 @@ def _load_research_digest(context_path: Path) -> tuple[dict, dict]:
     agents: dict[str, str] = {}
     if agents_dir.exists():
         for path in sorted(agents_dir.glob("*.md")):
-            agents[path.stem] = _shorten_markdown(path.read_text(encoding="utf-8"))
+            agents[path.stem] = path.read_text(encoding="utf-8")
 
     synthesis = ""
     if synthesis_path.exists():
-        synthesis = _shorten_markdown(synthesis_path.read_text(encoding="utf-8"))
+        synthesis = synthesis_path.read_text(encoding="utf-8")
 
     return dossier, {"agents": agents, "synthesis": synthesis}
 
@@ -181,7 +182,7 @@ def build_inputs_bundle(
         research_notes=research_notes,
         portfolio_text=portfolio_text,
         portfolio_data=portfolio_data,
-        portfolio_guardrails=analyze_portfolio_guardrails(portfolio_data),
+        portfolio_guardrails=comprehensive_portfolio_analysis(portfolio_data),
     )
 
 
@@ -236,12 +237,15 @@ def _build_model_prompt(bundle: SuggestBundle) -> str:
     parts.append(
         "\n## 要求\n"
         "1. 对每只研究标的给出明确建议：强买入/买入/持有/减持/卖出/回避\n"
-        "2. 建议仓位比例（占总资金百分比）\n"
+        "2. 建议仓位比例（占总资金百分比），必须符合组合风控约束\n"
         "3. 入场/出场价位建议\n"
         "4. 风险提示与止损位\n"
-        "5. 必须综合考虑持仓集中度和风险敞口\n"
-        "6. 是否与当前持仓冲突\n"
+        "5. 必须综合考虑持仓集中度、行业集中度和风险敞口\n"
+        "6. 是否与当前持仓冲突或高度同质\n"
         "7. 若证据不足，请明确说明还缺什么，不要脑补\n"
+        "8. 对每只标的给出替代标的建议（同行业更优选择）\n"
+        "9. 若不建议立即买入，给出更好的等待条件（价格/事件/数据）\n"
+        "10. 风险预算：当前组合总风险敞口评估，以及本次操作对风险预算的影响\n"
     )
     return "\n".join(parts)
 
@@ -277,7 +281,9 @@ def _build_synthesis_prompt(
         "2. 列出关键分歧点\n"
         "3. 给出最终建议排序（按优先级）\n"
         "4. 组合层面最合理的行动清单\n"
-        "5. 明确声明：这是候选决策，最终由人类拍板\n"
+        "5. 每只标的的替代方案和等待条件\n"
+        "6. 组合风险预算评估：当前总敞口、建议调整、剩余可用风险额度\n"
+        "7. 明确声明：这是候选决策，最终由人类拍板\n"
     )
     return "\n".join(parts)
 
