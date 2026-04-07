@@ -5,9 +5,10 @@ action: buy
 price: 70.355
 shares: 300
 amount: 21106.5
-reason: '持仓截图自动推断'
-research_ref: ''
+reason: '港股互联网龙头，外卖市占 60%+，监管反内卷预期。关税冲击后逢低建仓'
+research_ref: research/03690/2026-04-07
+decision_ref: research/03690/2026-04-07/decision.md
 confidence: 5
-tags: [auto-detected]
-review_date: ''
+tags: [auto-detected, hk-internet, local-services]
+review_date: '2026-05-31'
 created_at: '2026-04-02T21:37:28.000000'

@@ -1,0 +1,59 @@
+updated_at: '2026-04-07'
+
+watch:
+- code: '01810'
+  name: 小米集团-W
+  market: HK
+  added_at: '2026-04-07'
+  status: pending_buy
+  entry_zone: 'HK$28-31'
+  stop_loss: 26.000
+  target_position: 5%
+  research_ref: research/01810/2026-04-07
+  trigger: '4/8 港股复市后分批建仓（先 4 手，再 3 手）'
+  reason: '距 52 周高点 -44%，PE 17.4，安全边际最大。营收净利双创新高，汽车+AI 双催化'
+  alerts:
+    - type: price
+      condition: '<= 28.00'
+      message: '触及第二批买入价位，考虑加仓 3 手'
+    - type: price
+      condition: '<= 26.00'
+      message: '触及止损价，执行卖出'
+  expiry: '2026-05-08'
+
+- code: '09988'
+  name: 阿里巴巴-W
+  market: HK
+  added_at: '2026-04-07'
+  status: pending_buy
+  entry_zone: 'HK$105-118'
+  stop_loss: 100.000
+  target_position: 4%
+  research_ref: research/09988/2026-04-07
+  trigger: '4/8 港股复市后分批建仓（先 2 手，再 1 手）'
+  reason: '云+AI 三位数增长，外卖监管降温减少烧钱。PE 合理，距高点 -26%'
+  alerts:
+    - type: price
+      condition: '<= 105.00'
+      message: '触及第二批买入价位，考虑加仓 1 手'
+    - type: price
+      condition: '<= 100.00'
+      message: '触及止损价，执行卖出'
+  expiry: '2026-05-15'
+
+- code: '00700'
+  name: 腾讯控股
+  market: HK
+  added_at: '2026-04-07'
+  status: watch_only
+  entry_zone: 'HK$480-500'
+  stop_loss: null
+  target_position: null
+  research_ref: research/_suggest/2026-04-02-deep-research/report.md
+  trigger: '暂不买入，观察关税演变和 AI 落地进展'
+  reason: '深度报告评分 69.3（第一梯队），PE 仅 17.9，但当前资金优先配置小米和阿里'
+  alerts:
+    - type: price
+      condition: '<= 450.00'
+      message: '价格进入有吸引力的区间，考虑建仓'
+  expiry: '2026-05-31'

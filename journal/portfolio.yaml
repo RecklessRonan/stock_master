@@ -1,4 +1,4 @@
-updated_at: '2026-04-02'
+updated_at: '2026-04-07'
 total_assets: 802482.02
 market_value: 46058.74
 available: 757039.92
@@ -16,7 +16,7 @@ positions:
   stop_loss: null
   take_profit: null
   research_ref: research/002273/2026-03-30
-  notes: ''
+  notes: '4/7 综合评分 51.1，趋势偏弱。深度报告建议获利了结 50%'
 - code: '03690'
   name: 美团－Ｗ
   shares: 300
@@ -24,8 +24,25 @@ positions:
   latest_price: 80.250
   pnl: 112.21
   pnl_pct: 0.53%
-  strategy: ''
-  stop_loss: null
+  strategy: '持有观望，等 Q1 财报确认亏损收窄'
+  stop_loss: 68.000
   take_profit: null
-  research_ref: ''
-  notes: ''
+  research_ref: research/03690/2026-04-07
+  notes: '外卖反内卷利好，但 2026 仍预亏。复盘日 2026-05-31'
+pending_actions:
+- action: buy
+  code: '01810'
+  name: 小米集团-W
+  target_position: 5%
+  entry_zone: 'HK$28-31 分批'
+  stop_loss: 26.000
+  research_ref: research/01810/2026-04-07
+  notes: '4/8 港股复市后执行，安全边际最大'
+- action: buy
+  code: '09988'
+  name: 阿里巴巴-W
+  target_position: 4%
+  entry_zone: 'HK$105-118 分批'
+  stop_loss: 100.000
+  research_ref: research/09988/2026-04-07
+  notes: '4/8 港股复市后执行，AI+云催化剂'
