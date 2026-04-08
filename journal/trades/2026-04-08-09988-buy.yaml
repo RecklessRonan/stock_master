@@ -5,12 +5,12 @@ name: 阿里巴巴-W
 market: HK
 action: buy
 order_type: '增强限价'
-price_hkd: 122.000
-price_cny: 107.211
+currency: CNY
+price: 107.211
+original_price_hkd: 122.000
+exchange_rate: 0.879
 shares: 200
-amount_hkd: 24400.00
-amount_cny: 21414.20
-exchange_rate: 0.877
+amount: 21442.20
 reason: >
   伊朗停火利好叠加 AI 催化剂密集落地：
   Qwen3.6-Plus（国内最强编程模型）、淘宝闪购市占率 45.2% 超美团、
@@ -20,13 +20,12 @@ research_ref: research/09988/2026-04-07
 decision_ref: research/09988/2026-04-07/decision.md
 scenario_ref: research/_suggest/2026-04-08-morning-briefing/report.md
 confidence: 7
-stop_loss_hkd: 100.000
-stop_loss_pct: -18.03%
-target_price_hkd: 197.000
-target_upside_pct: 61.48%
+stop_loss: 87.670
+stop_loss_note: '对应 HK$100'
+target_price: 172.730
+target_price_note: '对应 HK$197'
 tags: [hk-internet, cloud, ai, ceasefire-catalyst]
 review_date: '2026-05-15'
 notes: >
-  HK$122 全部成交，在计划区间 HK$115-125 内。
-  计划目标仓位 4%，当前到位 2.69%，后续可视情况加仓 1 手（100 股）。
+  计划目标仓位 4%，当前到位 2.67%，后续可视情况加仓 1 手（100 股）。
   关税对跨境电商冲击是主要风险。

@@ -1,4 +1,6 @@
 updated_at: '2026-04-08'
+currency: CNY
+exchange_rate_hkd_cny: 0.8767
 
 watch:
 - code: '01810'
@@ -7,20 +9,22 @@ watch:
   added_at: '2026-04-07'
   status: bought
   bought_at: '2026-04-08'
-  bought_price_hkd: 32.000
+  bought_price: 28.385
+  bought_price_note: '对应 HK$32.000'
   bought_shares: 1200
-  entry_zone: 'HK$28-31（原计划）→ HK$30-33（停火后上调）'
-  stop_loss: 26.000
+  entry_zone: '¥26.3-27.2（对应 HK$30-31 原计划）→ ¥26.3-28.9（停火后上调至 HK$30-33）'
+  stop_loss: 22.794
+  stop_loss_note: '对应 HK$26'
   target_position: 5%
-  actual_position: 4.20%
+  actual_position: 4.26%
   research_ref: research/01810/2026-04-07
   trade_ref: journal/trades/2026-04-08-01810-buy.yaml
   trigger: '伊朗接受停火 → 场景 A 缓和 → 按计划执行'
   reason: '距 52 周高点 -44%，PE 17.4，安全边际最大。营收净利双创新高，汽车+AI 双催化'
   alerts:
     - type: price
-      condition: '<= 26.00'
-      message: '触及止损价 HK$26，执行卖出'
+      condition: '<= 22.794'
+      message: '触及止损价（对应 HK$26），执行卖出'
     - type: review
       condition: '2026-05-08'
       message: '一个月复盘：检查 Q1 财报、汽车交付、股价走势'
@@ -32,42 +36,44 @@ watch:
   added_at: '2026-04-07'
   status: bought
   bought_at: '2026-04-08'
-  bought_price_hkd: 122.000
+  bought_price: 107.211
+  bought_price_note: '对应 HK$122.000'
   bought_shares: 200
-  entry_zone: 'HK$105-118（原计划）→ HK$115-125（停火后上调）'
-  stop_loss: 100.000
+  entry_zone: '¥92.1-103.5（对应 HK$105-118 原计划）→ ¥100.8-109.6（停火后上调至 HK$115-125）'
+  stop_loss: 87.670
+  stop_loss_note: '对应 HK$100'
   target_position: 4%
-  actual_position: 2.69%
+  actual_position: 2.67%
   research_ref: research/09988/2026-04-07
   trade_ref: journal/trades/2026-04-08-09988-buy.yaml
   trigger: '伊朗接受停火 + Qwen3.6/闪购超美团/ATH 事业群多重催化'
-  reason: '云+AI 三位数增长，外卖监管降温减少烧钱。PE 合理，距高点 -26%'
+  reason: '云+AI 三位数增长，外卖监管降温减少烧钱。PE 合理'
   alerts:
     - type: price
-      condition: '<= 105.00'
-      message: '价格进入第二批加仓区间，考虑加仓 1 手（100 股）'
+      condition: '<= 92.06'
+      message: '价格进入第二批加仓区间（对应 HK$105），考虑加仓 1 手'
     - type: price
-      condition: '<= 100.00'
-      message: '触及止损价 HK$100，执行卖出'
+      condition: '<= 87.67'
+      message: '触及止损价（对应 HK$100），执行卖出'
     - type: review
       condition: '2026-05-15'
       message: '复盘：检查 FY26Q4 云收入、即时商务亏损、CMR 趋势'
   expiry: '2026-05-15'
-  notes: '目标仓位 4%，当前 2.69%，后续可加仓 1 手至约 3.9%'
+  notes: '目标仓位 4%，当前 2.67%，后续可加仓 1 手至约 3.9%'
 
 - code: '00700'
   name: 腾讯控股
   market: HK
   added_at: '2026-04-07'
   status: watch_only
-  entry_zone: 'HK$480-500'
+  entry_zone: '¥421-438（对应 HK$480-500）'
   stop_loss: null
   target_position: null
   research_ref: research/_suggest/2026-04-02-deep-research/report.md
   trigger: '暂不买入，资金已优先配置小米和阿里'
-  reason: '深度报告评分 69.3（第一梯队），PE 仅 17.9，但港股互联网敞口已达 9.68%'
+  reason: '深度报告评分 69.3（第一梯队），PE 仅 17.9，但港股互联网敞口已达 9.76%'
   alerts:
     - type: price
-      condition: '<= 450.00'
-      message: '价格进入有吸引力的区间，考虑建仓'
+      condition: '<= 394.52'
+      message: '价格进入有吸引力的区间（对应 HK$450），考虑建仓'
   expiry: '2026-05-31'

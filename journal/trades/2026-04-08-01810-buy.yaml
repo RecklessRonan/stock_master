@@ -5,12 +5,12 @@ name: 小米集团-W
 market: HK
 action: buy
 order_type: '增强限价'
-price_hkd: 32.000
-price_cny: 28.385
+currency: CNY
+price: 28.385
+original_price_hkd: 32.000
+exchange_rate: 0.887
 shares: 1200
-amount_hkd: 38400.00
-amount_cny: 33672.00
-exchange_rate: 0.877
+amount: 34062.00
 reason: >
   伊朗接受巴基斯坦停火提议（4/8 凌晨），地缘风险大幅下降。
   距 52 周高点 -44%，PE 17.4，安全边际最大。
@@ -21,13 +21,12 @@ research_ref: research/01810/2026-04-07
 decision_ref: research/01810/2026-04-07/decision.md
 scenario_ref: research/_suggest/2026-04-08-morning-briefing/report.md
 confidence: 7.5
-stop_loss_hkd: 26.000
-stop_loss_pct: -18.75%
-target_price_hkd: 43.000
-target_upside_pct: 34.38%
+stop_loss: 22.794
+stop_loss_note: '对应 HK$26'
+target_price: 37.924
+target_price_note: '对应 HK$43'
 tags: [hk-internet, ev, ai, ceasefire-catalyst]
 review_date: '2026-05-08'
 notes: >
   原计划分两批（800+400），实际一次性买入 1200 股（6 手）。
-  成交价 HK$32.0 在更新后的计划区间 HK$30-33 内。
   手机销量预计下滑 13% 需持续关注。

@@ -1,90 +1,92 @@
 updated_at: '2026-04-08'
-total_assets: 804663.96
-market_value: 104642.42
+updated_time: '11:16'
+currency: CNY
+exchange_rate_hkd_cny: 0.8767
+total_assets: 806608.08
+market_value: 106586.54
 available: 700021.54
-position_ratio: 13.00%
-daily_pnl: 2412.54
-floating_pnl: 6058.94
-exchange_rate_hkd_cny: 0.877
-snapshot: null
+position_ratio: 13.21%
+daily_pnl: 4356.66
+floating_pnl: 8003.06
 positions:
 - code: '01810'
   name: 小米集团-W
   market: HK
   shares: 1200
-  avg_cost_hkd: 32.000
-  avg_cost_cny: 28.385
-  latest_price_hkd: 32.140
-  market_value_cny: 33812.08
-  pnl: -249.48
-  pnl_pct: -0.73%
-  position_pct: 4.20%
-  strategy: '停火利好后分批建仓第一批（计划 5%，已到位 4.2%）'
-  stop_loss_hkd: 26.000
+  avg_cost: 28.385
+  latest_price: 28.632
+  original_price_hkd: 32.660
+  market_value: 34358.96
+  pnl: 297.40
+  pnl_pct: 0.87%
+  position_pct: 4.26%
+  strategy: '停火利好后建仓第一批（计划 5%，已到位 4.26%）'
+  stop_loss: 22.794
+  stop_loss_note: '对应 HK$26'
   take_profit: null
   research_ref: research/01810/2026-04-07
   buy_date: '2026-04-08'
   review_date: '2026-05-08'
-  notes: '1200 股一次到位，未留第二批。手机销量下滑 13% 需关注'
+  notes: '1200 股一次到位。手机销量预计下滑 13% 需关注'
 - code: '002273'
   name: 水晶光电
   market: A
   shares: 1000
   avg_cost: 22.082
-  latest_price: 26.720
-  market_value_cny: 26720.00
-  pnl: 4638.23
-  pnl_pct: 21.00%
-  position_pct: 3.32%
+  latest_price: 27.850
+  market_value: 27850.00
+  pnl: 5768.23
+  pnl_pct: 26.12%
+  position_pct: 3.45%
   strategy: ''
   stop_loss: null
   take_profit: null
   research_ref: research/002273/2026-03-30
-  notes: '综合评分 51.1，趋势偏弱。深度报告建议获利了结 50%。4/8 涨 4.57%'
+  notes: '综合评分 51.1，深度报告建议获利了结 50%。4/8 涨 4.57%'
 - code: '03690'
   name: 美团-W
   market: HK
   shares: 300
-  avg_cost_hkd: 80.270
-  avg_cost_cny: 69.993
-  latest_price_hkd: 85.450
-  latest_price_cny: 74.912
-  market_value_cny: 22473.80
-  pnl: 1475.90
-  pnl_pct: 7.03%
-  position_pct: 2.79%
+  avg_cost: 69.993
+  latest_price: 76.096
+  original_price_hkd: 86.800
+  market_value: 22828.85
+  pnl: 1830.95
+  pnl_pct: 8.72%
+  position_pct: 2.83%
   strategy: '持有观望，等 Q1 财报确认亏损收窄'
-  stop_loss_hkd: 74.000
-  stop_loss_cny: 64.898
+  stop_loss: 64.877
+  stop_loss_note: '对应 HK$74'
   take_profit: null
   research_ref: research/03690/2026-04-07
   buy_date: '2026-04-02'
   review_date: '2026-05-31'
-  notes: '停火利好涨 6%+，止损已从 68 上调至 74。花旗上调至买入目标价 110'
+  notes: '停火利好涨 6%+，止损已从 HK$68 上调至 HK$74。花旗上调至买入目标价 HK$110'
 - code: '09988'
   name: 阿里巴巴-W
   market: HK
   shares: 200
-  avg_cost_hkd: 122.000
-  avg_cost_cny: 107.211
-  latest_price_hkd: 123.400
-  market_value_cny: 21636.54
-  pnl: 194.29
-  pnl_pct: 0.91%
-  position_pct: 2.69%
+  avg_cost: 107.211
+  latest_price: 107.744
+  original_price_hkd: 122.900
+  market_value: 21548.73
+  pnl: 106.48
+  pnl_pct: 0.50%
+  position_pct: 2.67%
   strategy: '小仓位建仓，AI+云催化剂。可考虑后续加仓至 4%'
-  stop_loss_hkd: 100.000
+  stop_loss: 87.670
+  stop_loss_note: '对应 HK$100'
   take_profit: null
   research_ref: research/09988/2026-04-07
   buy_date: '2026-04-08'
   review_date: '2026-05-15'
-  notes: 'HK$122 成交，在 115-125 区间内。中金目标价 197'
+  notes: '中金目标价 HK$197。目标仓位 4%，当前 2.67%，可加仓 1 手'
 risk_summary:
-  hk_internet_exposure_pct: 9.68
+  hk_internet_exposure_pct: 9.76
   hk_internet_exposure_limit: 20.00
-  max_single_position_pct: 4.20
+  max_single_position_pct: 4.26
   max_single_position_limit: 20.00
-  cash_ratio_pct: 87.00
+  cash_ratio_pct: 86.79
   cash_ratio_floor: 75.00
   status: '所有风控指标在安全线内'
 pending_actions: []
