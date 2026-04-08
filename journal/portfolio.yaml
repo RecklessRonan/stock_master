@@ -48,12 +48,14 @@ positions:
   avg_cost_hkd: 70.355
   avg_cost_cny: 69.993
   latest_price_hkd: 85.450
+  latest_price_cny: 74.912
   market_value_cny: 22473.80
   pnl: 1475.90
   pnl_pct: 7.03%
   position_pct: 2.79%
   strategy: '持有观望，等 Q1 财报确认亏损收窄'
   stop_loss_hkd: 74.000
+  stop_loss_cny: 64.898
   take_profit: null
   research_ref: research/03690/2026-04-07
   buy_date: '2026-04-02'

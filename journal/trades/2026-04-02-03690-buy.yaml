@@ -1,10 +1,14 @@
 date: '2026-04-02'
 code: '03690'
 name: 美团－Ｗ
+market: HK
 action: buy
-price: 70.355
+price_hkd: 70.355
+price_cny: 69.993
 shares: 300
-amount: 21106.5
+amount_hkd: 21106.50
+amount_cny: 20997.90
+exchange_rate: 0.995
 reason: '港股互联网龙头，外卖市占 60%+，监管反内卷预期。关税冲击后逢低建仓'
 research_ref: research/03690/2026-04-07
 decision_ref: research/03690/2026-04-07/decision.md
