@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from typing import Optional
@@ -150,7 +150,7 @@ class DataCache:
             INSERT OR REPLACE INTO dataset_cache (code, dataset_key, data, fetched_at)
             VALUES (?, ?, ?, ?)
             """,
-            (code, dataset_key, json.dumps(payload, ensure_ascii=False), now),
+            (code, dataset_key, json.dumps(payload, ensure_ascii=False, default=str), now),
         )
         self.conn.commit()
 

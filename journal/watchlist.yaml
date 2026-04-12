@@ -77,3 +77,29 @@ watch:
       condition: '<= 394.52'
       message: '价格进入有吸引力的区间（对应 HK$450），考虑建仓'
   expiry: '2026-05-31'
+
+- code: '600309'
+  name: 万华化学
+  market: A
+  added_at: '2026-04-12'
+  status: pending_buy
+  entry_zone: '¥84-87（2026E PE 11-12x）'
+  stop_loss: 73.00
+  stop_loss_note: '跌破 2026E PE 10 倍'
+  target_position: 1%
+  target_position_max: 5%
+  research_ref: research/600309/2026-04-12
+  trigger: '周一（4/14）限价 ¥87 挂单买入 100 股'
+  reason: '全球 MDI 龙头，2025Q4 业绩拐点确认，2026E PE 11-12x 历史偏低，MDI 供需缺口扩大，新材料第二曲线放量。综合评分 72/100'
+  alerts:
+    - type: price
+      condition: '<= 80.00'
+      message: '价格进入加仓区间，可加仓至 3%（300 股）'
+    - type: price
+      condition: '<= 73.00'
+      message: '触及止损价，执行卖出'
+    - type: review
+      condition: '2026-05-12'
+      message: '一个月复盘：检查 Q1 财报、MDI 价格走势、新产能投产进度'
+  expiry: '2026-05-12'
+  notes: '与现有港股互联网持仓零相关，可提升行业分散度。A 股化工周期股，分批建仓策略。高油价环境利好 MDI 涨价但挤压下游需求，方向待验证'
