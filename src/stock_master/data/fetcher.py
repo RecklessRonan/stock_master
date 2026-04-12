@@ -767,7 +767,7 @@ def fetch_financial_statements(code: str) -> dict:
             with _bypass_proxy():
                 df = ak.stock_financial_report_sina(stock=code, symbol=symbol)
             if df is not None and not df.empty:
-                result[key] = df.head(5)
+                result[key] = df.head(5).to_dict(orient="records")
         except Exception:
             pass
 
